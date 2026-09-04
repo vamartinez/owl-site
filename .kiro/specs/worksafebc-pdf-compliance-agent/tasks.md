@@ -165,16 +165,16 @@ This plan extends the existing `report-validation` service (reusing its BDA extr
 
 - [ ] 11. Notifications
   - **BLOCKED on design.md Open Question 3 (notification channel)** — confirm with user before starting
-  - [ ] 11.1 Implement notification dispatch on terminal states (completado, extraccion_fallida, analisis_fallido, timeout)
+  - [x] 11.1 Implement notification dispatch on terminal states (completado, extraccion_fallida, analisis_fallido, timeout)
     - Subscribe a notification-sender to the SNS topic from task 6.1
     - Deliver within 60s of the state change; retry 3x at 30s intervals on delivery failure, then mark `notification_delivered: false` on the session and log to the event bus
     - _Requirements: 6.3, 6.5, 6.6, 6.7_
 
-  - [ ] 11.2 Implement 10-minute timeout watchdog
+  - [x] 11.2 Implement 10-minute timeout watchdog
     - If a session remains in recibido/categorizado/texto_extraido/analizando past 10 minutes from `started_at`, transition to `timeout` and notify — implement via a scheduled check (EventBridge rule invoking a small Lambda) rather than per-message visibility timeout tricks, since the 10-minute budget spans multiple queue hops
     - _Requirements: 6.5_
 
-  - [ ]* 11.3 Write property test: no session exceeds the timeout budget silently
+  - [x]* 11.3 Write property test: no session exceeds the timeout budget silently
     - **Property: Timeout enforcement**
     - Simulate sessions with arbitrary elapsed times; verify any session past 10 minutes without reaching a terminal state is caught by the watchdog
     - **Validates: Requirements 6.5**

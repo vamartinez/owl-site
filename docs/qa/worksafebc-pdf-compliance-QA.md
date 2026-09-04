@@ -22,16 +22,18 @@ WorkSafeBC OHSR compliance report. Extends the `report-validation` service
 7. **RBAC** — upload is allowed for platform_admin, tenant_admin, site_admin,
    supervisor, cso; denied for gate_operator, worker.
 8. **JSON export** — `GET /worksafebc-agent/sessions/{id}/report/export?format=json`.
+9. **Notifications** — on a terminal state (completado/fallida/timeout) a bell
+   notification is emitted via the platform events topic and the session's
+   `notification_delivered` flag is set.
+10. **Timeout watchdog** — a session stuck >10 min in a non-terminal state is
+    transitioned to `timeout` by a scheduled Lambda (1-min cadence).
 
 ## OUT OF SCOPE — do NOT file these as bugs
-- **Notifications & the 10-min timeout watchdog (task 11) are NOT implemented.**
-  QA sees status via polling only; no push notification, no auto-timeout.
 - **PDF export is JSON-only** (product decision: HTML + client print-to-PDF).
   `format=pdf` intentionally returns 400.
 - **Compliance-level rule assumes Requirement 4.9** (design.md recommendation),
   not 3.6. Validate against 4.9.
-- No backend handler/consumer e2e beyond the unit tests shipped; no frontend
-  tests beyond AnalysisProgress + ComplianceReportView.
+- **Notification channel is the in-platform bell only** (no SES email in v1).
 
 ## Pre-req: deploy (owner does this)
 1. Put `OLLAMA_API_KEY` in Secrets Manager (secret `dev-ollama-api-key`) — the

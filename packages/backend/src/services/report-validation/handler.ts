@@ -998,3 +998,5 @@ async function handleDeleteKBDocument(
 // WorkSafeBC async pipeline consumer entry points (distinct handler exports
 // on the same report-validation bundle — wired as separate CDK Functions).
 export { extractionConsumerHandler, analysisConsumerHandler } from './worksafebc-consumers.js';
+// WorkSafeBC notifications (task 11): SNS-subscribed dispatch + scheduled watchdog.
+export { notificationDispatchHandler, timeoutWatchdogHandler } from './worksafebc-notifications.js';

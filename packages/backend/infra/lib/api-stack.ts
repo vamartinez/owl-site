@@ -8,6 +8,8 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as events from 'aws-cdk-lib/aws-events';
+import * as eventsTargets from 'aws-cdk-lib/aws-events-targets';
+import * as snsSubscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
@@ -1266,6 +1268,8 @@ class ReportValidationNestedStack extends cdk.NestedStack {
   public readonly reportValidationFn: lambda.Function;
   public readonly pdfExtractionConsumerFn: lambda.Function;
   public readonly pdfAnalysisConsumerFn: lambda.Function;
+  public readonly pdfNotificationFn: lambda.Function;
+  public readonly pdfWatchdogFn: lambda.Function;
 
   constructor(scope: Construct, id: string, props: ReportValidationNestedStackProps) {
     super(scope, id, props);
@@ -1415,6 +1419,45 @@ class ReportValidationNestedStack extends cdk.NestedStack {
 
     this.pdfExtractionConsumerFn = makeConsumer('Extraction', 'extractionConsumerHandler');
     this.pdfAnalysisConsumerFn = makeConsumer('Analysis', 'analysisConsumerHandler');
+
+    // ─── Notifications + timeout watchdog (task 11) ───────────────────────────
+    const makeAuxFn = (idPart: string, handlerExport: string, timeoutS: number): lambda.Function => {
+      const fn = new lambda.Function(this, `Pdf${idPart}Fn`, {
+        runtime,
+        architecture,
+        tracing,
+        logGroup: new logs.LogGroup(this, `LgPdf${idPart}`, {
+          logGroupName: `/aws/lambda/${prefix}worksafebc-${idPart.toLowerCase()}`,
+          retention: logRetention,
+          removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+        }),
+        functionName: `${prefix}worksafebc-${idPart.toLowerCase()}`,
+        description: `WorkSafeBC ${idPart} (shares report-validation bundle)`,
+        handler: `handler.${handlerExport}`,
+        code: lambda.Code.fromAsset('dist/services/report-validation'),
+        memorySize: 256,
+        timeout: cdk.Duration.seconds(timeoutS),
+        environment: consumerEnv,
+        reservedConcurrentExecutions: concurrency,
+      });
+      for (const table of props.allTables) table.grantReadWriteData(fn);
+      props.platformEventsTopic.grantPublish(fn); // bell notifications
+      return fn;
+    };
+
+    // 11.1 — dispatch on terminal states: subscribe to the pdf-compliance topic.
+    this.pdfNotificationFn = makeAuxFn('Notification', 'notificationDispatchHandler', 30);
+    props.pdfComplianceTopic.addSubscription(
+      new snsSubscriptions.LambdaSubscription(this.pdfNotificationFn)
+    );
+
+    // 11.2 — 10-minute timeout watchdog on a scheduled rule (1-min cadence).
+    this.pdfWatchdogFn = makeAuxFn('Watchdog', 'timeoutWatchdogHandler', 60);
+    new events.Rule(this, 'PdfWatchdogSchedule', {
+      ruleName: `${prefix}worksafebc-timeout-watchdog`,
+      schedule: events.Schedule.rate(cdk.Duration.minutes(1)),
+      targets: [new eventsTargets.LambdaFunction(this.pdfWatchdogFn)],
+    });
   }
 }
 
