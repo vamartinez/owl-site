@@ -85,6 +85,19 @@ const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 // Public forms (no auth required)
 const PublicFormPage = lazy(() => import('@/features/public-form/PublicFormPage'));
 
+// Public self check-in (no auth required)
+const PublicCheckinPage = lazy(() => import('@/features/self-checkin/PublicCheckinPage'));
+// WorkSafeBC PDF Compliance Agent (task 14)
+const WsbSessionList = lazy(() =>
+  import('@/features/worksafebc-agent').then((m) => ({ default: m.AnalysisSessionList }))
+);
+const WsbSessionDetail = lazy(() =>
+  import('@/features/worksafebc-agent').then((m) => ({ default: m.AnalysisSessionDetail }))
+);
+const WsbRegulatoryKBAdmin = lazy(() =>
+  import('@/features/worksafebc-agent').then((m) => ({ default: m.RegulatoryKBAdmin }))
+);
+
 // Layout
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuthStore } from '@/store/auth-store';
@@ -135,6 +148,9 @@ export function AppRouter() {
 
         {/* Public form route (no auth, no AppLayout) */}
         <Route path="/public/forms/:token" element={<PublicFormPage />} />
+
+        {/* Public self check-in route (no auth, no AppLayout) */}
+        <Route path="/check-in/:token" element={<PublicCheckinPage />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute><ErrorBoundary><AppLayout /></ErrorBoundary></ProtectedRoute>}>
@@ -189,6 +205,11 @@ export function AppRouter() {
 
           {/* Knowledge Base */}
           <Route path="/knowledge-base" element={<RoleGuard permission="kb.manage"><KnowledgeBaseManager /></RoleGuard>} />
+
+          {/* WorkSafeBC PDF Compliance Agent */}
+          <Route path="/worksafebc" element={<WsbSessionList />} />
+          <Route path="/worksafebc/regulatory-kb" element={<RoleGuard permission="kb.manage"><WsbRegulatoryKBAdmin /></RoleGuard>} />
+          <Route path="/worksafebc/:id" element={<WsbSessionDetail />} />
 
           {/* Documents */}
           <Route path="/documents" element={<RoleGuard permission="documents.view"><DocumentExplorerPage /></RoleGuard>} />

@@ -17,7 +17,25 @@ interface SiteConfigData {
   checkInMethod: string;
   autoEnforcement: boolean;
   notifyOnRejection: boolean;
+  /**
+   * Compliance jurisdiction for AI safety findings. Saved as the canonical
+   * registry id consumed by the backend regulatory-mapping pipeline
+   * (jurisdiction-registry.ts resolveJurisdictionId passes canonical ids
+   * through unchanged). Keep JURISDICTION_OPTIONS below in sync with the
+   * backend registry (listJurisdictions()).
+   */
+  jurisdiction: string;
 }
+
+/**
+ * Source of truth: packages/backend/src/services/regulatory-mapping/
+ * jurisdiction-registry.ts (JURISDICTIONS keys). Add a province here when it
+ * is registered in the backend.
+ */
+const JURISDICTION_OPTIONS = [
+  { value: 'worksafe-bc', label: 'British Columbia — WorkSafeBC (OHS Regulation)' },
+  { value: 'ontario-oreg-213-91', label: 'Ontario — O. Reg. 213/91 (Construction Projects, COR)' },
+] as const;
 
 export default function SiteConfig() {
   const { id } = useParams<{ id: string }>();
@@ -127,6 +145,23 @@ export default function SiteConfig() {
                 {...register('checkInMethod')}
               />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader title="Compliance" />
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                label="Compliance Jurisdiction"
+                options={JURISDICTION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                {...register('jurisdiction')}
+              />
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Determines which occupational health &amp; safety regulations AI
+              safety findings are mapped against for this site.
+            </p>
           </CardContent>
         </Card>
 

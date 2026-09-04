@@ -41,6 +41,13 @@ export class EventsStack extends cdk.Stack {
   /** Reporting dead-letter queue */
   public readonly reportingDlq: sqs.Queue;
 
+  /** WorkSafeBC PDF compliance analysis queue (task 6.1) */
+  public readonly pdfComplianceQueue: sqs.Queue;
+  /** WorkSafeBC PDF compliance dead-letter queue */
+  public readonly pdfComplianceDlq: sqs.Queue;
+  /** WorkSafeBC session state-change SNS topic */
+  public readonly pdfComplianceTopic: sns.Topic;
+
   constructor(scope: Construct, id: string, props: EventsStackProps) {
     super(scope, id, props);
 
@@ -126,8 +133,29 @@ export class EventsStack extends cdk.Stack {
       },
     });
 
+    // ─── WorkSafeBC PDF Compliance pipeline (task 6.1) ────────────────────────
+    // Mirrors the AI-pipeline DLQ/retry conventions. State changes fan out on a
+    // dedicated SNS topic (session lifecycle events for notifications).
+    this.pdfComplianceTopic = new sns.Topic(this, 'PdfComplianceTopic', {
+      topicName: `${prefix}pdf-compliance-events`,
+      displayName: 'WorkSafeBC PDF Compliance session state changes',
+    });
+
+    this.pdfComplianceDlq = new sqs.Queue(this, 'PdfComplianceDlq', {
+      queueName: `${prefix}pdf-compliance-dlq`,
+      retentionPeriod: cdk.Duration.days(14),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+    });
+
+    this.pdfComplianceQueue = new sqs.Queue(this, 'PdfComplianceQueue', {
+      queueName: `${prefix}pdf-compliance-analysis-queue`,
+      visibilityTimeout: cdk.Duration.seconds(300),
+      retentionPeriod: cdk.Duration.days(7),
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      deadLetterQueue: { queue: this.pdfComplianceDlq, maxReceiveCount: 3 },
+    });
+
     // ─── SNS → SQS Subscriptions ─────────────────────────────────────────────
-    // Route events to appropriate queues based on filter policies.
 
     this.platformEventsTopic.addSubscription(
       new snsSubscriptions.SqsSubscription(this.aiPipelineQueue, {
@@ -247,6 +275,17 @@ export class EventsStack extends cdk.Stack {
       value: this.reportingDlq.queueUrl,
       description: 'URL of the reporting dead-letter queue',
       exportName: `${prefix}reporting-dlq-url`,
+    });
+
+    new cdk.CfnOutput(this, 'PdfComplianceQueueUrl', {
+      value: this.pdfComplianceQueue.queueUrl,
+      description: 'URL of the WorkSafeBC PDF compliance analysis queue',
+      exportName: `${prefix}pdf-compliance-queue-url`,
+    });
+    new cdk.CfnOutput(this, 'PdfComplianceTopicArn', {
+      value: this.pdfComplianceTopic.topicArn,
+      description: 'ARN of the WorkSafeBC PDF compliance state-change topic',
+      exportName: `${prefix}pdf-compliance-topic-arn`,
     });
   }
 }

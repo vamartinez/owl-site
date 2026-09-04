@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
@@ -62,6 +63,13 @@ export interface ApiStackProps extends cdk.StackProps {
   certExpiryQueue: sqs.Queue;
   notificationQueue: sqs.Queue;
   reportingQueue: sqs.Queue;
+  pdfComplianceQueue: sqs.Queue;
+  pdfComplianceTopic: sns.Topic;
+
+  // WorkSafeBC PDF Compliance Agent tables (task 1.1)
+  analysisSessionsTable: dynamodb.Table;
+  regulatoryClausesTable: dynamodb.Table;
+  regulatoryVersionsTable: dynamodb.Table;
 
   // Storage references (S3)
   mediaBucket: s3.Bucket;
@@ -497,13 +505,90 @@ export class ApiStack extends cdk.Stack {
     // scoped table grants below instead of the blanket read/write-all, to keep
     // the ApiStack under the 500-resource CloudFormation limit.
 
-    // Grant read/write to all tables for all functions
-    // In production, this should be scoped per-service for least privilege
-    for (const fn of allFunctions) {
-      for (const table of allTables) {
-        table.grantReadWriteData(fn);
+    // ─── DynamoDB access via shared table-group managed policies ──────────────
+    // Instead of granting every function read/write to every table (which emits
+    // one large inline managed policy PER function — 65 in total, pushing the
+    // stack over CloudFormation's 500-resource limit), we define a few SHARED
+    // ManagedPolicy objects grouped by table domain and attach only the groups
+    // each service needs. A ManagedPolicy attached to N roles is ONE resource,
+    // so this both collapses the resource count and tightens least-privilege.
+    const dynamoActions = [
+      'dynamodb:GetItem',
+      'dynamodb:BatchGetItem',
+      'dynamodb:Query',
+      'dynamodb:Scan',
+      'dynamodb:PutItem',
+      'dynamodb:UpdateItem',
+      'dynamodb:DeleteItem',
+      'dynamodb:BatchWriteItem',
+      'dynamodb:ConditionCheckItem',
+    ];
+
+    const tableGroup = (id: string, tables: dynamodb.Table[]): iam.ManagedPolicy => {
+      const resources: string[] = [];
+      for (const t of tables) {
+        resources.push(t.tableArn, `${t.tableArn}/index/*`);
       }
-    }
+      return new iam.ManagedPolicy(this, id, {
+        statements: [
+          new iam.PolicyStatement({ actions: dynamoActions, resources }),
+        ],
+      });
+    };
+
+    // Domain groups (supersets of observed getTableName usage, so no runtime
+    // regression vs the previous grant-all behavior for each service's needs).
+    const coreRefGroup = tableGroup('DdbCoreRef', [
+      props.tenantsTable, props.workersTable, props.certificationsTable,
+      props.sitesTable, props.policiesTable, props.policyVersionsTable,
+    ]);
+    const decisionGroup = tableGroup('DdbDecision', [
+      props.decisionRecordsTable, props.accessTokensTable, props.scanSessionsTable,
+      props.overrideRequestsTable, props.revalidationAttemptsTable,
+      props.enforcementActionsTable,
+    ]);
+    const aiGroup = tableGroup('DdbAi', [
+      props.inspectionsTable, props.mediaAssetsTable, props.detectionResultsTable,
+      props.sceneInterpretationsTable, props.findingsTable,
+      props.dailyComplianceSummariesTable,
+    ]);
+    const formsGroup = tableGroup('DdbForms', [
+      props.formsTable, props.formVersionsTable, props.formResponsesTable,
+      props.formAuditLogTable,
+    ]);
+    const incidentsGroup = tableGroup('DdbIncidents', [
+      props.incidentsTable, props.incidentTimelineTable, props.incidentRegulatoryDataTable,
+    ]);
+    const platformGroup = tableGroup('DdbPlatform', [
+      props.auditTrailTable, props.leadCapturesTable, props.usersTable,
+      props.sessionsTable, props.deviceCacheTable, props.offlineQueueTable,
+      props.rateLimitsTable,
+    ]);
+    const checkinGroup = tableGroup('DdbCheckin', [
+      props.checkinTokensTable, props.selfCheckinAuditLogTable,
+    ]);
+
+    const attach = (fn: lambda.Function, groups: iam.ManagedPolicy[]): void => {
+      for (const g of groups) fn.role?.addManagedPolicy(g);
+    };
+
+    // All the "core" API services keep broad access to the core reference,
+    // decision, and platform groups (matching their prior grant-all reach),
+    // plus their domain-specific groups.
+    const broad = [coreRefGroup, decisionGroup, platformGroup];
+    attach(this.decisionEngineFn, [...broad, aiGroup]);
+    attach(this.policyServiceFn, [...broad]);
+    attach(this.identityServiceFn, [...broad, formsGroup, incidentsGroup, checkinGroup]);
+    attach(this.accessServiceFn, [...broad]);
+    attach(this.aiOrchestrationFn, [...broad, aiGroup]);
+    attach(this.detectionLayerFn, [...broad, aiGroup]);
+    attach(this.sceneUnderstandingFn, [...broad, aiGroup]);
+    attach(this.regulatoryMappingFn, [...broad, aiGroup]);
+    attach(this.reportingServiceFn, [...broad, aiGroup]);
+    attach(this.notificationServiceFn, [...broad]);
+    attach(this.syncServiceFn, [...broad, aiGroup]);
+    attach(this.formsServiceFn, [coreRefGroup, platformGroup, formsGroup]);
+    attach(this.incidentServiceFn, [coreRefGroup, platformGroup, incidentsGroup]);
 
     // ─── IAM Permissions — SNS ────────────────────────────────────────────────
 
@@ -616,25 +701,22 @@ export class ApiStack extends cdk.Stack {
     // Using allowTestInvoke: false to prevent per-route Lambda::Permission resources.
     // A single wildcard permission per Lambda is granted below instead.
 
-    const policyIntegration = new apigateway.LambdaIntegration(this.policyServiceFn, { allowTestInvoke: false });
-    const identityIntegration = new apigateway.LambdaIntegration(this.identityServiceFn, { allowTestInvoke: false });
-    const accessIntegration = new apigateway.LambdaIntegration(this.accessServiceFn, { allowTestInvoke: false });
-    const aiOrchestrationIntegration = new apigateway.LambdaIntegration(this.aiOrchestrationFn, { allowTestInvoke: false });
-    const reportingIntegration = new apigateway.LambdaIntegration(this.reportingServiceFn, { allowTestInvoke: false });
-    const syncIntegration = new apigateway.LambdaIntegration(this.syncServiceFn, { allowTestInvoke: false });
+    const policyIntegration = new apigateway.LambdaIntegration(this.policyServiceFn, { allowTestInvoke: false, scopePermissionToMethod: false });
+    const identityIntegration = new apigateway.LambdaIntegration(this.identityServiceFn, { allowTestInvoke: false, scopePermissionToMethod: false });
+    const accessIntegration = new apigateway.LambdaIntegration(this.accessServiceFn, { allowTestInvoke: false, scopePermissionToMethod: false });
+    const aiOrchestrationIntegration = new apigateway.LambdaIntegration(this.aiOrchestrationFn, { allowTestInvoke: false, scopePermissionToMethod: false });
+    const reportingIntegration = new apigateway.LambdaIntegration(this.reportingServiceFn, { allowTestInvoke: false, scopePermissionToMethod: false });
+    const syncIntegration = new apigateway.LambdaIntegration(this.syncServiceFn, { allowTestInvoke: false, scopePermissionToMethod: false });
 
     // Contractors reuse identity service (or a dedicated handler — using identity for now)
 
     // Lead capture — no auth required (public endpoint)
 
-    // Grant API Gateway invoke permission (wildcard) per Lambda — replaces per-route permissions
-    const apiArn = this.api.arnForExecuteApi('*', '/*', '*');
-    for (const fn of allFunctions) {
-      fn.addPermission('ApiGatewayInvoke', {
-        principal: new cdk.aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
-        sourceArn: apiArn,
-      });
-    }
+    // API Gateway invoke permission is emitted by CDK itself: each
+    // LambdaIntegration is built with scopePermissionToMethod:false, so instead
+    // of a per-method AWS::Lambda::Permission (which pushed the stack toward the
+    // 500-resource CloudFormation limit) CDK adds ONE api-scoped wildcard
+    // permission per function, deduplicated across all the methods it backs.
 
     // ─── API Routes: Workers (Identity Service) ───────────────────────────────
 
@@ -867,7 +949,7 @@ export class ApiStack extends cdk.Stack {
 
     // ─── API Routes: Forms (Forms Service) ────────────────────────────────────
 
-    const formsIntegration = new apigateway.LambdaIntegration(this.formsServiceFn, { allowTestInvoke: false });
+    const formsIntegration = new apigateway.LambdaIntegration(this.formsServiceFn, { allowTestInvoke: false, scopePermissionToMethod: false });
 
     const forms = this.api.root.addResource('forms');
     forms.addMethod('POST', formsIntegration, authorizedMethodOptions);
@@ -916,6 +998,7 @@ export class ApiStack extends cdk.Stack {
 
     const safetyAiIntegration = new apigateway.LambdaIntegration(this.aiOrchestrationFn, {
       allowTestInvoke: false,
+      scopePermissionToMethod: false,
     });
 
     const safetyAi = this.api.root.addResource('safety-ai');
@@ -955,7 +1038,7 @@ export class ApiStack extends cdk.Stack {
     // while remaining compatible with the already-deployed /incidents/{id} resource.
     // The Lambda handler routes internally based on httpMethod + resolved path.
 
-    const incidentIntegration = new apigateway.LambdaIntegration(this.incidentServiceFn, { allowTestInvoke: false });
+    const incidentIntegration = new apigateway.LambdaIntegration(this.incidentServiceFn, { allowTestInvoke: false, scopePermissionToMethod: false });
 
     const incidents = this.api.root.addResource('incidents');
     incidents.addMethod('POST', incidentIntegration, authorizedMethodOptions);
@@ -1006,6 +1089,8 @@ export class ApiStack extends cdk.Stack {
       allTables,
       platformEventsTopic: props.platformEventsTopic,
       sharedEnv,
+      pdfComplianceQueue: props.pdfComplianceQueue,
+      pdfComplianceTopic: props.pdfComplianceTopic,
     });
     this.reportValidationFn = reportValidationNested.reportValidationFn;
 
@@ -1136,16 +1221,13 @@ class DocumentServiceNestedStack extends cdk.NestedStack {
     props.mediaBucket.grantRead(this.documentServiceFn);
     props.mediaBucket.grantPut(this.documentServiceFn);
 
-    // IAM: API Gateway invoke
-    const apiArn = api.arnForExecuteApi('*', '/*', '*');
-    this.documentServiceFn.addPermission('ApiGatewayInvoke', {
-      principal: new cdk.aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
-      sourceArn: apiArn,
-    });
+    // IAM: API Gateway invoke — emitted by CDK via the integration's
+    // scopePermissionToMethod:false (one deduped api-scoped permission).
 
     // Lambda integration
     const documentIntegration = new apigateway.LambdaIntegration(this.documentServiceFn, {
       allowTestInvoke: false,
+      scopePermissionToMethod: false,
     });
 
     // API Gateway: single proxy route to handle all /documents/* paths
@@ -1176,10 +1258,14 @@ interface ReportValidationNestedStackProps extends cdk.NestedStackProps {
   allTables: dynamodb.Table[];
   platformEventsTopic: sns.Topic;
   sharedEnv: Record<string, string>;
+  pdfComplianceQueue: sqs.Queue;
+  pdfComplianceTopic: sns.Topic;
 }
 
 class ReportValidationNestedStack extends cdk.NestedStack {
   public readonly reportValidationFn: lambda.Function;
+  public readonly pdfExtractionConsumerFn: lambda.Function;
+  public readonly pdfAnalysisConsumerFn: lambda.Function;
 
   constructor(scope: Construct, id: string, props: ReportValidationNestedStackProps) {
     super(scope, id, props);
@@ -1230,16 +1316,13 @@ class ReportValidationNestedStack extends cdk.NestedStack {
     // `bedrock:InvokeModel` grant that used to sit here is removed — no migrated
     // path calls Bedrock inference anymore (BDA OCR is out of scope).
 
-    // IAM: API Gateway invoke
-    const apiArn = api.arnForExecuteApi('*', '/*', '*');
-    this.reportValidationFn.addPermission('ApiGatewayInvoke', {
-      principal: new cdk.aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
-      sourceArn: apiArn,
-    });
+    // IAM: API Gateway invoke — emitted by CDK via the integration's
+    // scopePermissionToMethod:false (one deduped api-scoped permission).
 
     // Lambda integration
     const reportValidationIntegration = new apigateway.LambdaIntegration(this.reportValidationFn, {
       allowTestInvoke: false,
+      scopePermissionToMethod: false,
     });
 
     // API Gateway resources
@@ -1270,6 +1353,68 @@ class ReportValidationNestedStack extends cdk.NestedStack {
 
     const rvKbDocId = rvKbDocs.addResource('{id}');
     rvKbDocId.addMethod('DELETE', reportValidationIntegration, authorizedMethodOptions);
+
+    // ─── WorkSafeBC PDF Compliance Agent ──────────────────────────────────────
+    // Routes are served by the SAME report-validation Lambda (design.md: extend,
+    // don't fork). The API Lambda needs the queue URL + topic ARN to enqueue and
+    // publish; grant it send/publish.
+    this.reportValidationFn.addEnvironment('PDF_COMPLIANCE_QUEUE_URL', props.pdfComplianceQueue.queueUrl);
+    this.reportValidationFn.addEnvironment('PDF_COMPLIANCE_TOPIC_ARN', props.pdfComplianceTopic.topicArn);
+    props.pdfComplianceQueue.grantSendMessages(this.reportValidationFn);
+    props.pdfComplianceTopic.grantPublish(this.reportValidationFn);
+
+    const wsb = api.root.addResource('worksafebc-agent');
+    const wsbSessions = wsb.addResource('sessions');
+    wsbSessions.addMethod('GET', reportValidationIntegration, authorizedMethodOptions);
+    wsbSessions.addMethod('POST', reportValidationIntegration, authorizedMethodOptions);
+    const wsbSessionId = wsbSessions.addResource('{id}');
+    wsbSessionId.addMethod('GET', reportValidationIntegration, authorizedMethodOptions);
+    wsbSessionId.addResource('category').addMethod('PATCH', reportValidationIntegration, authorizedMethodOptions);
+    wsbSessionId.addResource('reanalyze').addMethod('POST', reportValidationIntegration, authorizedMethodOptions);
+    wsbSessionId
+      .addResource('report')
+      .addResource('export')
+      .addMethod('GET', reportValidationIntegration, authorizedMethodOptions);
+    const wsbVersions = wsb.addResource('regulatory-versions');
+    wsbVersions.addMethod('GET', reportValidationIntegration, authorizedMethodOptions);
+    wsbVersions.addMethod('POST', reportValidationIntegration, authorizedMethodOptions);
+
+    // ─── Async consumers (share the report-validation bundle) ─────────────────
+    const consumerEnv: Record<string, string> = {
+      ...props.sharedEnv,
+      PDF_COMPLIANCE_QUEUE_URL: props.pdfComplianceQueue.queueUrl,
+      PDF_COMPLIANCE_TOPIC_ARN: props.pdfComplianceTopic.topicArn,
+    };
+
+    const makeConsumer = (idPart: string, handlerExport: string): lambda.Function => {
+      const fn = new lambda.Function(this, `Pdf${idPart}Fn`, {
+        runtime,
+        architecture,
+        tracing,
+        logGroup: new logs.LogGroup(this, `LgPdf${idPart}`, {
+          logGroupName: `/aws/lambda/${prefix}worksafebc-${idPart.toLowerCase()}-consumer`,
+          retention: logRetention,
+          removalPolicy: isProd ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+        }),
+        functionName: `${prefix}worksafebc-${idPart.toLowerCase()}-consumer`,
+        description: `WorkSafeBC ${idPart} consumer (shares report-validation bundle)`,
+        handler: `handler.${handlerExport}`,
+        code: lambda.Code.fromAsset('dist/services/report-validation'),
+        memorySize: 512,
+        timeout: cdk.Duration.seconds(300),
+        environment: consumerEnv,
+        reservedConcurrentExecutions: concurrency,
+      });
+      for (const table of props.allTables) table.grantReadWriteData(fn);
+      props.mediaBucket.grantReadWrite(fn);
+      props.pdfComplianceQueue.grantSendMessages(fn);
+      props.pdfComplianceTopic.grantPublish(fn);
+      fn.addEventSource(new lambdaEventSources.SqsEventSource(props.pdfComplianceQueue, { batchSize: 1 }));
+      return fn;
+    };
+
+    this.pdfExtractionConsumerFn = makeConsumer('Extraction', 'extractionConsumerHandler');
+    this.pdfAnalysisConsumerFn = makeConsumer('Analysis', 'analysisConsumerHandler');
   }
 }
 
@@ -1351,15 +1496,12 @@ class SelfCheckinNestedStack extends cdk.NestedStack {
     }
     props.platformEventsTopic.grantPublish(this.selfCheckinServiceFn);
 
-    // IAM: API Gateway invoke
-    const apiArn = api.arnForExecuteApi('*', '/*', '*');
-    this.selfCheckinServiceFn.addPermission('ApiGatewayInvoke', {
-      principal: new cdk.aws_iam.ServicePrincipal('apigateway.amazonaws.com'),
-      sourceArn: apiArn,
-    });
+    // IAM: API Gateway invoke — emitted by CDK via the integration's
+    // scopePermissionToMethod:false (one deduped api-scoped permission).
 
     const checkinIntegration = new apigateway.LambdaIntegration(this.selfCheckinServiceFn, {
       allowTestInvoke: false,
+      scopePermissionToMethod: false,
     });
 
     // Route-count minimization (mirrors document-service's {proxy+} approach) to

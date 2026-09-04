@@ -100,6 +100,9 @@ const apiStack = new ApiStack(app, `${prefix}ComplianceApiStack`, {
   incidentRegulatoryDataTable: dataStack.incidentRegulatoryDataTable,
   checkinTokensTable: dataStack.checkinTokensTable,
   selfCheckinAuditLogTable: dataStack.selfCheckinAuditLogTable,
+  analysisSessionsTable: dataStack.analysisSessionsTable,
+  regulatoryClausesTable: dataStack.regulatoryClausesTable,
+  regulatoryVersionsTable: dataStack.regulatoryVersionsTable,
 
   // Events references (SQS/SNS)
   platformEventsTopic: eventsStack.platformEventsTopic,
@@ -107,6 +110,8 @@ const apiStack = new ApiStack(app, `${prefix}ComplianceApiStack`, {
   certExpiryQueue: eventsStack.certExpiryQueue,
   notificationQueue: eventsStack.notificationQueue,
   reportingQueue: eventsStack.reportingQueue,
+  pdfComplianceQueue: eventsStack.pdfComplianceQueue,
+  pdfComplianceTopic: eventsStack.pdfComplianceTopic,
 
   // Storage references (S3)
   mediaBucket: storageStack.mediaBucket,

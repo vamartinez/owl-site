@@ -46,6 +46,16 @@ import {
   deleteKBDocument,
   listKBDocuments,
 } from './kb-manager.js';
+import {
+  handleCreateSession,
+  handleCategorize,
+  handleGetSession,
+  handleListSessions,
+  handleReanalyze,
+  handleExportReport,
+  handlePublishRegulatoryVersion,
+  handleListRegulatoryVersions,
+} from './worksafebc-handlers.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -144,6 +154,50 @@ async function handleApiEvent(event: ApiGatewayEvent): Promise<ApiGatewayRespons
     const documentId = pathParameters?.['id'];
     if (!documentId) return badRequest('Document ID is required');
     return handleDeleteKBDocument(user, documentId);
+  }
+
+  // --- WorkSafeBC PDF Compliance Agent endpoints ---
+  const wsbParseBody = (): Record<string, unknown> => {
+    const raw = (event as Record<string, unknown>)['body'];
+    if (typeof raw !== 'string' || !raw) return {};
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  };
+
+  if (httpMethod === 'POST' && resource === '/worksafebc-agent/sessions') {
+    return handleCreateSession(user, wsbParseBody());
+  }
+  if (httpMethod === 'PATCH' && resource === '/worksafebc-agent/sessions/{id}/category') {
+    const id = pathParameters?.['id'];
+    if (!id) return badRequest('Session ID is required');
+    return handleCategorize(user, id, wsbParseBody());
+  }
+  if (httpMethod === 'GET' && resource === '/worksafebc-agent/sessions/{id}') {
+    const id = pathParameters?.['id'];
+    if (!id) return badRequest('Session ID is required');
+    return handleGetSession(user, id);
+  }
+  if (httpMethod === 'GET' && resource === '/worksafebc-agent/sessions') {
+    return handleListSessions(user, queryStringParameters);
+  }
+  if (httpMethod === 'POST' && resource === '/worksafebc-agent/sessions/{id}/reanalyze') {
+    const id = pathParameters?.['id'];
+    if (!id) return badRequest('Session ID is required');
+    return handleReanalyze(user, id);
+  }
+  if (httpMethod === 'GET' && resource === '/worksafebc-agent/sessions/{id}/report/export') {
+    const id = pathParameters?.['id'];
+    if (!id) return badRequest('Session ID is required');
+    return handleExportReport(user, id, queryStringParameters?.['format'] ?? 'json');
+  }
+  if (httpMethod === 'POST' && resource === '/worksafebc-agent/regulatory-versions') {
+    return handlePublishRegulatoryVersion(user, wsbParseBody());
+  }
+  if (httpMethod === 'GET' && resource === '/worksafebc-agent/regulatory-versions') {
+    return handleListRegulatoryVersions(user);
   }
 
   return badRequest('Unsupported route');
@@ -940,3 +994,7 @@ async function handleDeleteKBDocument(
 
   return createSuccessResponse(200, result);
 }
+
+// WorkSafeBC async pipeline consumer entry points (distinct handler exports
+// on the same report-validation bundle — wired as separate CDK Functions).
+export { extractionConsumerHandler, analysisConsumerHandler } from './worksafebc-consumers.js';

@@ -1,0 +1,34 @@
+{
+  "effective_date": "2026-01-01",
+  "change_summary": "QA seed — initial OHSR sample clauses for WorkSafeBC PDF compliance testing",
+  "clauses": [
+    {
+      "part_number": "11",
+      "section": "11.2",
+      "clause": "(1)",
+      "regulation_text": "A worker must be protected from falling where the worker could fall 3 m (10 ft) or more, or where a fall from a lesser height could result in serious injury. Fall protection systems include guardrails, safety nets, and personal fall arrest systems.",
+      "applicability_categories": ["plan_seguridad", "procedimiento_trabajo_seguro", "evaluacion_riesgo"]
+    },
+    {
+      "part_number": "8",
+      "section": "8.22",
+      "clause": "(1)",
+      "regulation_text": "Workers must wear head protection meeting CSA Standard Z94.1 in areas where there is a danger of head injury from falling, flying, or thrown objects.",
+      "applicability_categories": ["plan_seguridad", "formulario_contratista", "evaluacion_riesgo"]
+    },
+    {
+      "part_number": "20",
+      "section": "20.2",
+      "clause": "(1)",
+      "regulation_text": "Before excavation begins, the employer must ensure underground utility locations are identified. Excavation walls must be supported or sloped to prevent cave-in.",
+      "applicability_categories": ["evaluacion_riesgo", "procedimiento_trabajo_seguro"]
+    },
+    {
+      "part_number": "4",
+      "section": "4.43",
+      "clause": "(1)",
+      "regulation_text": "Work areas must be kept clean and orderly. Exits and access routes must be kept clear of obstructions at all times.",
+      "applicability_categories": ["plan_seguridad", "procedimiento_trabajo_seguro", "evaluacion_riesgo", "formulario_contratista", "otro"]
+    }
+  ]
+}

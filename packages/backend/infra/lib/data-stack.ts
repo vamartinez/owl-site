@@ -40,6 +40,10 @@ export class DataStack extends cdk.Stack {
   public readonly incidentsTable: dynamodb.Table;
   public readonly incidentTimelineTable: dynamodb.Table;
   public readonly incidentRegulatoryDataTable: dynamodb.Table;
+  // WorkSafeBC PDF Compliance Agent (task 1.1)
+  public readonly analysisSessionsTable: dynamodb.Table;
+  public readonly regulatoryClausesTable: dynamodb.Table;
+  public readonly regulatoryVersionsTable: dynamodb.Table;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -602,6 +606,65 @@ export class DataStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
       pointInTimeRecovery: environment === 'prod',
+    });
+
+    // --- WorkSafeBC PDF Compliance Agent tables (task 1.1) ---
+
+    // AnalysisSessions (Sesion_Analisis)
+    // PK: TENANT#{tenant_id}, SK: SESSION#{session_id}
+    // GSI1 (site-scoped): GSI1PK = TENANT#{tenant_id}#SITE#{site_id}, GSI1SK = SESSION#{started_at}
+    // GSI2 (re-analysis chains): GSI2PK = TENANT#{tenant_id}#DOCUMENT#{document_group_id}, GSI2SK = SESSION#{started_at}
+    // NOTE: RETAIN + PITR and NO TTL — 7-year regulatory retention means
+    // "must not delete before", which is the OPPOSITE of TTL auto-deletion.
+    // retention_expires_at is a queryable field for archival review, not a TTL.
+    this.analysisSessionsTable = new dynamodb.Table(this, 'AnalysisSessionsTable', {
+      tableName: `${prefix}AnalysisSessions`,
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
+    });
+    this.analysisSessionsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: { name: 'GSI1PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI1SK', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+    this.analysisSessionsTable.addGlobalSecondaryIndex({
+      indexName: 'GSI2',
+      partitionKey: { name: 'GSI2PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI2SK', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // RegulatoryClauses (Base_Regulatoria_WorkSafeBC)
+    // PK: PART#{part_number}, SK: VERSION#{version_id}#SECTION#{section}#CLAUSE#{clause}
+    // GSI1 (list clauses in a version): GSI1PK = VERSION#{version_id}, GSI1SK = PART#...#SECTION#...#CLAUSE#...
+    this.regulatoryClausesTable = new dynamodb.Table(this, 'RegulatoryClausesTable', {
+      tableName: `${prefix}RegulatoryClauses`,
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
+    });
+    this.regulatoryClausesTable.addGlobalSecondaryIndex({
+      indexName: 'GSI1',
+      partitionKey: { name: 'GSI1PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'GSI1SK', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // RegulatoryVersions (version metadata, single partition WORKSAFEBC_KB)
+    // PK: WORKSAFEBC_KB, SK: VERSION#{version_id}  (zero-padded, lexicographic order)
+    this.regulatoryVersionsTable = new dynamodb.Table(this, 'RegulatoryVersionsTable', {
+      tableName: `${prefix}RegulatoryVersions`,
+      partitionKey: { name: 'PK', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'SK', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
     });
 
     // --- Stack Outputs ---

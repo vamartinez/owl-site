@@ -55,6 +55,7 @@ export type Permission =
   | 'users:manage'
   | 'tenant:configure'
   | 'kb:manage'
+  | 'worksafebc:upload'
   | 'audit:read';
 
 /**
@@ -74,7 +75,7 @@ const PERMISSION_MATRIX: Record<Role, Permission[]> = {
     'reports:read', 'reports:generate', 'reports:export', 'reports:upload',
     'contractors:create', 'contractors:read', 'contractors:update', 'contractors:delete',
     'forms:create', 'forms:read', 'forms:update', 'forms:publish', 'forms:read_responses', 'forms:export',
-    'users:manage', 'tenant:configure', 'kb:manage', 'audit:read',
+    'users:manage', 'tenant:configure', 'kb:manage', 'worksafebc:upload', 'audit:read',
   ],
   [Role.TENANT_ADMIN]: [
     'workers:create', 'workers:read', 'workers:update', 'workers:delete',
@@ -89,7 +90,7 @@ const PERMISSION_MATRIX: Record<Role, Permission[]> = {
     'reports:read', 'reports:generate', 'reports:export', 'reports:upload',
     'contractors:create', 'contractors:read', 'contractors:update', 'contractors:delete',
     'forms:create', 'forms:read', 'forms:update', 'forms:publish', 'forms:read_responses', 'forms:export',
-    'users:manage', 'tenant:configure', 'kb:manage', 'audit:read',
+    'users:manage', 'tenant:configure', 'kb:manage', 'worksafebc:upload', 'audit:read',
   ],
   [Role.SITE_ADMIN]: [
     'workers:create', 'workers:read', 'workers:update',
@@ -104,6 +105,7 @@ const PERMISSION_MATRIX: Record<Role, Permission[]> = {
     'reports:read', 'reports:generate', 'reports:export', 'reports:upload',
     'contractors:read', 'contractors:update',
     'forms:create', 'forms:read', 'forms:update', 'forms:publish', 'forms:read_responses', 'forms:export',
+    'worksafebc:upload',
     'audit:read',
   ],
   [Role.SUPERVISOR]: [
@@ -118,6 +120,7 @@ const PERMISSION_MATRIX: Record<Role, Permission[]> = {
     'reports:read', 'reports:upload',
     'contractors:read',
     'forms:read', 'forms:read_responses',
+    'worksafebc:upload',
   ],
   [Role.CSO]: [
     'workers:read',
@@ -131,6 +134,7 @@ const PERMISSION_MATRIX: Record<Role, Permission[]> = {
     'reports:read', 'reports:generate', 'reports:export', 'reports:upload',
     'contractors:read',
     'forms:read', 'forms:read_responses',
+    'worksafebc:upload',
     'audit:read',
   ],
   [Role.GATE_OPERATOR]: [

@@ -28,11 +28,20 @@ Remaining to actually support a 2nd province:
    default BC), passes it into `buildRegulatoryMappingPrompt` and writes it as
    the output `jurisdiction_id`. 78 tests green. A site set to an Ontario
    jurisdiction label on its policy now runs O. Reg. 213/91 rules LIVE.
-5. STILL TODO — admin-portal UI to set a site/policy jurisdiction from a
-   dropdown of `listJurisdictions()` (today it's the free-text policy field;
-   labels like 'Ontario' / 'BC' resolve correctly, arbitrary text falls back
-   to BC). Backend accepts it already.
+5. ~~admin-portal UI to set a site/policy jurisdiction~~ DONE — `SiteConfig.tsx`
+   now has a "Compliance Jurisdiction" dropdown (Select) saving the canonical
+   registry id (`worksafe-bc` / `ontario-oreg-213-91`) via the existing
+   `PATCH /sites/:id/config` mutation. JURISDICTION_OPTIONS mirrors the backend
+   registry (keep in sync with listJurisdictions()). Vite build green; the only
+   modified file is SiteConfig.tsx (pre-existing tsc errors in document-explorer
+   / Combobox test files are unrelated).
 6. STILL TODO — property tests across all registered jurisdictions.
+
+BACKEND WIRING NOTE: SiteConfig saves the jurisdiction on the site config; the
+regulatory-mapping pipeline reads jurisdiction from the *Policy* record. Confirm
+`PATCH /sites/:id/config` persists jurisdiction where fetchPolicyJurisdiction
+reads it (Policies table `jurisdiction` field), or add a mapping — otherwise the
+dropdown saves but the mapper still reads the policy's own jurisdiction.
 
 NOTE (how the AI uses these rules): rules are STATIC TypeScript compiled into
 the Lambda bundle, injected into the model's system prompt by code

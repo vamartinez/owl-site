@@ -20,6 +20,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<string>> = {
     'admin.view', 'admin.users', 'admin.roles', 'admin.config',
     'forms.view', 'forms.create', 'forms.edit', 'forms.publish', 'forms.responses', 'forms.export',
     'incidents.view', 'incidents.create', 'incidents.regulatory', 'incidents.export',
+    'worksafebc.view',
   ]),
   tenant_admin: new Set([
     'dashboard.view',
@@ -35,6 +36,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<string>> = {
     'admin.view', 'admin.users', 'admin.roles',
     'forms.view', 'forms.create', 'forms.edit', 'forms.publish', 'forms.responses', 'forms.export',
     'incidents.view', 'incidents.create', 'incidents.regulatory', 'incidents.export',
+    'worksafebc.view',
   ]),
   site_admin: new Set([
     'dashboard.view',
@@ -49,6 +51,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<string>> = {
     'documents.view',
     'forms.view', 'forms.create', 'forms.edit', 'forms.publish', 'forms.responses', 'forms.export',
     'incidents.view', 'incidents.create',
+    'worksafebc.view',
   ]),
   supervisor: new Set([
     'dashboard.view',
@@ -63,6 +66,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<string>> = {
     'documents.view',
     'forms.view', 'forms.responses',
     'incidents.view', 'incidents.create', 'incidents.export',
+    'worksafebc.view',
   ]),
   cso: new Set([
     'dashboard.view',
@@ -76,6 +80,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Set<string>> = {
     'documents.view',
     'forms.view', 'forms.responses',
     'incidents.view', 'incidents.create', 'incidents.regulatory', 'incidents.export',
+    'worksafebc.view',
   ]),
   gate_operator: new Set([
     'dashboard.view',
@@ -110,6 +115,7 @@ export const NAVIGATION_TREE: NavItem[] = [
   { label: 'Incidents', path: '/incidents', icon: 'AlertTriangle', permission: 'incidents.view' },
   { label: 'Documents', path: '/documents', icon: 'FolderOpen', permission: 'documents.view' },
   { label: 'Reports', path: '/reports', icon: 'FileBarChart', permission: 'report_validation.view' },
+  { label: 'WorkSafeBC', path: '/worksafebc', icon: 'ClipboardList', permission: 'worksafebc.view' },
   { label: 'Knowledge Base', path: '/knowledge-base', icon: 'BookOpen', permission: 'kb.manage' },
   { label: 'Administration', path: '/admin', icon: 'Settings', permission: 'admin.view' },
 ];
