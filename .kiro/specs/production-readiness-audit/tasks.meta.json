@@ -1,0 +1,1046 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1. Redeploy backend to `dev` and re-run this audit's repro steps before writing any fix code": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478892487
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478909710
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788484848698
+      }
+    ],
+    "2.1 Confirm via `curl` (already done in this audit, re-confirm after Task 1's redeploy) that `POST https://.../dev/leads` with a correct `{company_name, contact_name, email, message}` payload returns `201` — this proves the backend is not the problem, so do NOT spend time in `leads/handler.ts` or CloudWatch logs for this issue": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478892602
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788484859056
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486378499
+      }
+    ],
+    "2.2 Add a build step to `.github/workflows/landing-page.yml` and `.github/workflows/admin-portal.yml` that sets `VITE_API_URL` to the real API Gateway invoke URL before `pnpm --filter <pkg> build` runs, sourced from the CDK API stack's output rather than hand-typed": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478892711
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486353508
+      }
+    ],
+    "2.3 Add a CloudFront behavior in `packages/backend/infra/lib/hosting-stack.ts` forwarding `/api/*` on both `AdminPortalCDN` and `LandingPageCDN` distributions to an `HttpOrigin` for the API Gateway execute-api domain, so the relative `/api` fallback already in `admin-portal/src/services/api-client.ts` works in every real environment, not just local `vite dev`": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478892804
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486356359
+      }
+    ],
+    "2.4 Update `packages/landing-page`'s `ContactForm.tsx` error handling to distinguish \"temporary, retry\" (5xx) from \"check your input\" (400) instead of one generic \"Something went wrong\" message": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478892891
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486358145
+      }
+    ],
+    "2.5 Add a post-deploy smoke-test script that `curl`s the real deployed CloudFront URLs (not localhost) for both the Landing Page leads endpoint and one authenticated Admin Portal API call, and fails loudly if either is unreachable": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478892989
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486360098
+      }
+    ],
+    "2.6 Live-verify against the ACTUAL deployed CloudFront domains (get the URL from `cdk deploy` output or CloudFormation, not localhost): submit the real Landing Page contact form and confirm a real `LeadCaptures` item is created; load the deployed Admin Portal and confirm at least the Dashboard's KPI cards populate with real data": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893090
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486362397
+      }
+    ],
+    "3.1 In `packages/admin-portal/src/features/report-validation/hooks/useReports.ts`, change `sort_by` values from `created_at`/`latest_validation_date` to `upload_date`/`validation_date` (matching `listReportsQuerySchema` in `packages/backend/src/services/report-validation/types.ts`); update any UI sort-control that feeds this hook to match": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893170
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788484861515
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486381227
+      }
+    ],
+    "3.2 In the same hook, replace `page`/`page_size` query params with `limit`/`cursor` per `paginationQuerySchema` (`packages/backend/src/shared/validators.ts`); update `ReportListPage.tsx`'s pagination controls to cursor-based navigation, mirroring an existing cursor-paginated list in this codebase (e.g. contractors or forms) rather than inventing a new pattern": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893254
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486364749
+      }
+    ],
+    "3.3 Live-verify: open `/reports` as platform_admin, tenant_admin, site_admin, and cso — confirm the list loads for each, sorting works, and paging past the first page returns different results": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893354
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486366230
+      }
+    ],
+    "4.1 Extract the item-mapping logic from `handleListSites` (`packages/backend/src/services/policy/handler.ts`, ~line 594) into a shared `mapSiteRecord(item)` function": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893440
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788484863343
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486382612
+      }
+    ],
+    "4.2 Change `handleGetSite` (~line 631) to return `mapSiteRecord(result.Items[0])` directly instead of `{ site: result.Items[0] }`": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893572
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486345513
+      }
+    ],
+    "4.3 Extract the per-site compliance calculation from `handleComplianceSummary`'s `bySite` loop (`packages/backend/src/services/reporting/handler.ts`, ~lines 824-848) into a reusable helper; call it from both `handleGetSite` and `handleListSites` to populate `activeWorkers`, `compliancePercent`, `contractor`": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893656
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486347850
+      }
+    ],
+    "4.4 Confirm `SiteProfile.tsx`'s existing `?? []` / `?? 'N/A'` guards (lines 87, 98, 109, 120, 136) still work unchanged — do not modify the frontend unless the backend shape change requires it": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893737
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486349763
+      }
+    ],
+    "4.5 Live-verify: open `/sites/{id}` for an existing site, confirm name/address render in the header and stat cards show real (non-N/A) numbers where data exists": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893820
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486351616
+      }
+    ],
+    "5.1 In `packages/backend/src/services/identity/admin-users.ts`, remove `Filter: '\"custom:tenant_id\" = \"${tenantId}\"'` from the `ListUsersCommand` call (~line 92)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478893907
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788484865216
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486340812
+      }
+    ],
+    "5.2 After fetching the full paginated user list, filter by `custom:tenant_id` in application code using the existing `getAttribute(attributes, ...)` helper pattern": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894001
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486342259
+      }
+    ],
+    "5.3 Live-verify: log in as platform_admin, open `/admin`, confirm the logged-in user appears in the list; smoke-test \"Invite User\" end-to-end and confirm the invited user shows up scoped to the correct tenant": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894091
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486344136
+      }
+    ],
+    "6.1 Capture the actual network response for whatever endpoint feeds the Dashboard's \"Compliance Trend (7 days)\" chart; determine if it returns real time-series data": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894191
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788484866507
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486376145
+      }
+    ],
+    "6.2 Capture the actual network response for the Certifications \"by Type\" breakdown (likely `/certifications/stats`); determine if `type` is populated on certification records or if the endpoint isn't grouping by it correctly": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894287
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486368059
+      }
+    ],
+    "6.3 Fix whichever side (backend data, or frontend chart data-consumption) is at fault for each chart — do not speculatively change both sides": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894383
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486369518
+      }
+    ],
+    "6.4 Live-verify both charts render real series/breakdowns against the current (or freshly reseeded, per Task 7) dev data": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894473
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486371118
+      }
+    ],
+    "7.1 Extend `handleListSites` to include a worker count and compliance percentage per row (reuse Task 4's compliance helper)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894605
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486392579
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487299646
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487312117
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487462456
+      }
+    ],
+    "7.2 Extend `listContractors` (`packages/backend/src/services/contractors/contractor.ts`) to include phone/worker-count/compliance per row, and add the `total` field via a `Select: 'COUNT'` query per `verification-notes.md`'s existing recommendation, so `ContractorList.tsx`'s header count is accurate beyond one page": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894692
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487299768
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487470407
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487613823
+      }
+    ],
+    "7.3 Add input trimming/quote-stripping to the worker create/update Zod schema for `legal_name`/`preferred_name` in the identity service": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894793
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487299895
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487617779
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487840824
+      }
+    ],
+    "7.4 Add `packages/backend/scripts/reset-dev-data.ts` (or `.sh`) that clears and reseeds a small, clearly-labeled demo tenant's data; guard it with an explicit environment check that refuses to run against anything but `dev`; add a dry-run flag that prints what would be deleted before deleting": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894887
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300001
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487845469
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788488100822
+      }
+    ],
+    "7.5 Run the reset script once against `dev` and confirm Sites/Contractors/Workers lists show clean, realistic, non-duplicated demo data": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478894984
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300114
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788488105590
+      }
+    ],
+    "8.1 Inventory every hardcoded Spanish string in the `contractor-forms-qr` frontend feature (`FormListPage`, `FormDetailPage`, `FormEditPage`, `FormResponsesPage`, and shared components) — \"Formularios\", \"Crear Formulario\", \"Estado\", \"Publicado\", \"Borrador\", \"Cargando formularios...\", \"Duplicar\", \"Respuestas\", \"Acciones\", \"Nombre\", \"Fecha de creación\", etc.": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895069
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486395371
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300220
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788488333767
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788488481521
+      }
+    ],
+    "8.2 Replace with English equivalents matching the rest of the platform's tone (\"Forms\", \"Create Form\", \"Status\", \"Published\", \"Draft\", \"Loading forms...\", \"Duplicate\", \"Responses\", \"Actions\", \"Name\", \"Created\")": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895161
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300322
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788488485830
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788488881558
+      }
+    ],
+    "8.3 Confirm no backend contract depends on the Spanish strings (e.g. status enum values sent to the API) — only user-facing label text should change, not data values": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895262
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300433
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788488885562
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489044470
+      }
+    ],
+    "8.4 Live-verify: navigate the Formularios module end-to-end and confirm no Spanish text remains outside of intentionally bilingual content (if any exists for worker-facing forms, which is out of scope here — this task is about the staff-facing Admin Portal module only)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895371
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300583
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489050739
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489169685
+      }
+    ],
+    "11.1 Using Task 7's reseeded demo data, create at least one Safety AI finding (via the actual upload-evidence → AI pipeline, or manually if the pipeline can't be exercised locally) and verify live whether photo annotation/markup exists on the finding review UI (Requirement 9.3)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895460
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300703
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490606910
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490735136
+      }
+    ],
+    "11.2 Using the same seeded finding, verify live whether `/safety-ai/corrective-actions` supports assignment + due date + re-inspection close-out, or is read-only (Requirement 9.4)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895587
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300822
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490739763
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490865431
+      }
+    ],
+    "11.3 Verify live whether crossing the 30-day certification expiry threshold actually triggers an email/SMS via `notification-service`, or whether the Dashboard's \"Certs Expiring (30d)\" card is display-only (Requirement 9.8)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895688
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487300934
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490871695
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491065675
+      }
+    ],
+    "11.4 Confirm there is no existing live roster / \"who's on site now\" view anywhere in the Admin Portal beyond the \"Recent Check-Ins\" log (Requirement 9.1) and no signature-capture field type in the Formularios builder (Requirement 9.2)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895804
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487301066
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491071605
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491249083
+      }
+    ],
+    "11.5 Compile findings from 11.1-11.4 plus the roadmap-scoped items (9.5 COR/D&A, 9.6 offline-first, 9.7 template library) into a short prioritized list and present it to the Product Owner for a go/no-go decision on which become follow-up specs before the next customer-facing milestone — do not start implementing any of Requirement 9's items without that sign-off, since several (COR/D&A, offline architecture) are strategic scope decisions, not bugs": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478895904
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487301180
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491255584
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491453437
+      }
+    ],
+    "9.1 Add a `fast-check`-based property test (following this repo's existing `pnpm test:properties` pattern) that generates the query params `useReports.ts` would send for arbitrary valid hook inputs, and asserts they always pass `listReportsQuerySchema.safeParse(...)`": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896003
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487301284
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489178737
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489326713
+      }
+    ],
+    "9.2 Wire this test into whichever CI/test suite already runs `pnpm test:properties` so a future frontend or backend change to this contract fails CI instead of shipping silently broken to `dev` again": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896100
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487301396
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489331065
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489581236
+      }
+    ],
+    "10.1 Write requirements.md covering: public QR-based check-in, public SMS-link check-in, identity verification without a staff Cognito session, decision-engine integration, role-scoped explainability per `docs/ROLES.md`": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896191
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487301579
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489592593
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489820392
+      }
+    ],
+    "10.2 Write design.md reusing this spec's sequence diagram (see `design.md` §Requirement 7) as a starting point, and explicitly reusing `contractor-forms-qr`'s public-token, rate-limiter, and sanitizer patterns rather than reinventing public-endpoint abuse protection": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896290
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487301685
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489824767
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490151469
+      }
+    ],
+    "10.3 Write tasks.md sized comparably to `contractor-forms-qr` (63 tasks) given the comparable scope (new public routes, new frontend surface, notification integration, decision-engine integration)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896388
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487301802
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490155743
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490566809
+      }
+    ],
+    "10.4 Do NOT implement this spec's tasks as part of the current spec — this task's completion criterion is the new spec existing and being ready for its own separate implementation pass": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896471
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487301949
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490576308
+      }
+    ],
+    "12.1 Grep `packages/admin-portal/src/app/router.tsx` and any Site/Worker detail pages for an existing but unlinked upload-and-analyze action before adding a new one": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896572
+      },
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486396831
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487302082
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491464655
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491542235
+      }
+    ],
+    "12.2 IF none exists, add a \"New Scan\" / \"Upload Photo\" control on `/safety-ai` (site selector + file picker/camera capture, reusing the `IncidentCreateForm` \"Take Photo\" pattern) that calls the existing `detection`/`scene-understanding` trigger endpoint (confirm the exact route in `docs/API-ROUTES.md`)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896673
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487302197
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491548000
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491684061
+      }
+    ],
+    "12.3 Add async progress display and result rendering, reusing `ai-report-validation`'s `ValidationProgress` polling pattern rather than inventing a new one": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896773
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487302317
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491688973
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491701107
+      }
+    ],
+    "12.4 Live-verify: upload a real photo as a supervisor/site_admin/cso, confirm a finding appears in the `/safety-ai` list with real detection data (not a stub)": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896857
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487302449
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491707760
+      }
+    ],
+    "12.5 Once a real finding exists, re-run Task 11's items 11.1 and 11.2 (photo annotation, corrective-action loop) which required a finding to test against": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478896957
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487302612
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491722068
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491819717
+      }
+    ],
+    "13.1 Inventory every Bedrock touchpoint precisely: `detection/detector.ts`, `scene-understanding/classifier.ts`, `report-validation/validation-engine.ts`, `report-validation/kb-manager.ts`, plus any CDK-provisioned Bedrock/Knowledge Base/S3 Vectors resources, plus the not-yet-started `worksafebc-pdf-compliance-agent` spec's Bedrock-based design": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478897057
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487302714
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491826588
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788492105437
+      }
+    ],
+    "13.2 Measure the actual token count of the regulatory corpus (WorkSafeBC OHS Regulation, BC Building Code, Construction Safety Standards) currently indexed in the Bedrock Knowledge Base, to decide between prompt-caching the full corpus directly in Claude API calls (preferred if it fits) vs. standing up a separate lightweight vector store": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478897155
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487302834
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788492114000
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788492304488
+      }
+    ],
+    "13.3 Write requirements.md covering: direct Anthropic Messages API calls for vision (`detection`/`scene-understanding`), the chosen RAG replacement approach for `report-validation`, `ANTHROPIC_API_KEY` secrets management via AWS Secrets Manager + CDK injection, and updating `worksafebc-pdf-compliance-agent`'s design before it's implemented": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478897256
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487302936
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788492309800
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788492492586
+      }
+    ],
+    "13.4 Write design.md specifying the exact `@anthropic-ai/sdk` call shapes replacing each Bedrock call, the CDK changes (new Secrets Manager secret + IAM grants, removal of now-unused Bedrock/Knowledge Base/S3 Vectors resources confirmed via `cdk diff`), and a before/after accuracy comparison test plan using a fixed set of sample hazard photos so the provider swap can't silently regress detection quality": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478897355
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487303050
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788492499824
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788493228569
+      }
+    ],
+    "13.5 Write tasks.md with concrete per-service migration tasks, sized realistically given four+ Lambda services and CDK infrastructure changes are involved": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478897455
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487303153
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788493233035
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788493428658
+      }
+    ],
+    "13.6 Do NOT implement this spec's tasks as part of the current spec — this task's completion criterion is the new spec existing and being ready for its own separate implementation pass": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788478897537
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788487303261
+      },
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788493439615
+      }
+    ],
+    "5. Remove the unsupported Cognito custom-attribute Filter and filter in application code": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486344248
+      }
+    ],
+    "6. Investigate then fix the empty compliance trend and \"Unknown\" certification-type charts": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486376295
+      }
+    ],
+    "2. Give both `landing-page` and `admin-portal` a real, working way to reach the API when deployed": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486378619
+      }
+    ],
+    "3. Align the report-validation query contract between frontend and backend": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486381336
+      }
+    ],
+    "4. Make `handleGetSite` return the same shape and real computed fields as `handleListSites`": [
+      {
+        "executionId": "a31af1c2-e09f-4a1f-800f-995045cc9a74",
+        "chatSessionId": "sess_a079d31f-3172-41d6-a4f9-7ad4247653ad",
+        "timestamp": 1788486382714
+      }
+    ],
+    "8. Translate the Formularios (contractor-forms-qr) module's UI strings to English": [
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489169976
+      }
+    ],
+    "9. Add a property test asserting `useReports.ts` and `listReportsQuerySchema` never drift again": [
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788489581369
+      }
+    ],
+    "10. Write a dedicated `.kiro/specs/worker-self-checkin` spec (requirements.md + design.md + tasks.md)": [
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788490576459
+      }
+    ],
+    "11. Verify which competitive gaps are real and produce a prioritized punch list for product sign-off": [
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788491453607
+      }
+    ],
+    "13. Write a dedicated `.kiro/specs/ai-provider-migration` spec (requirements.md + design.md + tasks.md) — do not implement inline here": [
+      {
+        "executionId": "4783e0fe-994c-4c7d-94b4-4412ba2b380b",
+        "chatSessionId": "sess_f7c4cd90-6341-4e68-8361-13e6c028f2ce",
+        "timestamp": 1788493439777
+      }
+    ]
+  }
+}

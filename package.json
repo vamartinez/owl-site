@@ -1,0 +1,32 @@
+{
+  "name": "site-macaron",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI Construction Compliance Platform - Monorepo",
+  "scripts": {
+    "dev:portal": "pnpm --filter admin-portal dev",
+    "dev:landing": "pnpm --filter landing-page dev",
+    "build:backend": "pnpm --filter backend build",
+    "build:portal": "pnpm --filter admin-portal build",
+    "build:landing": "pnpm --filter landing-page build",
+    "test": "pnpm -r test",
+    "test:properties": "pnpm --filter backend test:properties",
+    "lint": "pnpm -r lint",
+    "deploy:dev": "pnpm --filter backend deploy:dev",
+    "deploy:prod": "pnpm --filter backend deploy:prod",
+    "smoke:dev": "pnpm --filter backend smoke:dev",
+    "smoke:prod": "pnpm --filter backend smoke:prod"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.1.0"
+}

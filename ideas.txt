@@ -1,0 +1,1172 @@
+- tiempo desde upload hasta finding reviewed
+
+### Producto
+
+- adopción semanal por site
+- worker completion rate en status/credential flow
+- supervisor repeat usage del módulo AI
+- daily summary open rate
+
+---
+
+## 15. Resumen ejecutivo
+
+La versión anterior del draft tenía una buena dirección, pero era insuficiente para escalar como producto real. Esta versión introduce los bloques fundamentales que hacen viable el sistema: un **Compliance Decision Engine** explícito, policy versioning, event-driven architecture, explainability audit-grade, un modelo de acceso más robusto y un AI module estructurado en tres capas.
+
+Con esto, el MVP deja de ser una suma de features y pasa a ser una plataforma coherente para BC, con una ruta clara hacia multi-site, multi-policy y eventualmente multi-jurisdiction.
+victormartinez@Victors-MacBook-Pro /tmp % clear                             
+
+victormartinez@Victors-MacBook-Pro /tmp % cat ai-construction-mvp-spec-v2.md
+# AI Construction Compliance Platform — Draft de especificaciones MVP v2 (BC)
+
+## 1. Propósito del documento
+
+Este documento redefine el MVP con foco en British Columbia para que pueda pasar a implementación en Kiro con una base más sólida de producto, arquitectura y decisiones de cumplimiento. El objetivo es evitar que el sistema nazca como un conjunto de features aisladas y, en cambio, estructurarlo como un motor de decisiones auditable para acceso, cumplimiento y hallazgos de seguridad.
+
+El producto no debe plantearse como un simple checklist tool ni como una app de computer vision. La tesis correcta del producto es: **regulatory reasoning engine for construction operations**, con una primera aplicación clara en acceso a obra, elegibilidad de trabajadores, evidencia visual y decisiones explicables.
+
+---
+
+## 2. Product thesis
+
+### 2.1 Qué es el producto
+
+Una plataforma SaaS para construction operations orientada al mercado de BC que unifica:
+
+- worker identity and access validation
+- certification and site eligibility management
+- QR/SMS-based check-in and gate workflows
+- visual safety compliance analysis from field evidence
+- audit-grade compliance decisions with explainability
+
+### 2.2 Qué no es
+
+No es solamente:
+
+- un repositorio de certificados
+- un sistema de QR para entrada
+- una app de detección PPE
+- un formulario digital de inspecciones
+
+### 2.3 Definición correcta
+
+Es un **Compliance Decision Platform** con cuatro pilares:
+
+1. Identity and eligibility
+2. Site policy enforcement
+3. AI-assisted safety observation
+4. Audit and regulatory explainability
+
+---
+
+## 3. Killer workflow del MVP
+
+El MVP debe centrarse en un workflow diario y repetible, no en una colección suelta de módulos.
+
+### 3.1 Killer workflow inicial
+
+**Morning site access validation + daily hazard scan + end-of-day compliance summary**
+
+### 3.2 Flujo operativo
+
+1. Worker llega a site.
+2. Escanea QR persistente o recibe link por SMS.
+3. El sistema valida identidad, certificaciones, site policies y estado de acceso.
+4. Se emite una decisión explicable: allowed / conditional / denied.
+5. Durante la jornada, supervisor o CSO sube fotos de obra.
+6. El sistema genera hallazgos con explicación, regla aplicada y acción correctiva sugerida.
+7. Al final del día, el sistema genera un resumen auditable por site.
+
+### 3.3 Por qué este workflow importa
+
+Este flujo crea hábito diario, hace el producto sticky y conecta acceso, operación y compliance en un ciclo cerrado. También genera datos que fortalecen el moat: historial de elegibilidad, evidencia visual, decisiones explicables y patrones de riesgo por site.
+
+---
+
+## 4. Core system architecture
+
+## 4.1 Compliance Decision Engine (nuevo core obligatorio)
+
+Esta es la pieza central del sistema y debe definirse explícitamente.
+
+### Responsabilidad
+
+Centraliza toda decisión de cumplimiento y acceso. Ningún módulo debería decidir por su cuenta.
+
+### Inputs
+
+- worker identity
+- certifications
+- site requirements
+- jurisdiction
+- active policy versions
+- AI findings
+- timestamps
+- access request context
+- manual overrides
+
+### Outputs
+
+- decision
+- severity / impact
+- reasons
+- rules_applied
+- policy_version_used
+- confidence (cuando aplique)
+- explainability payload
+
+### Tipos de decisiones soportadas
+
+- site access eligibility
+- certification compliance
+- AI finding classification
+- corrective action recommendation
+- insurance/compliance enrichment (futuro)
+- jurisdiction-specific enforcement
+
+### Objetivos de diseño
+
+- single source of truth for decisioning
+- deterministic outputs where rules exist
+- version-aware evaluation
+- replayable decisions for audits
+- explainable by default
+
+### Ejemplo de output estándar
+
+```json
+{
+  "decision": "denied",
+  "decision_type": "site_access",
+  "reasons": [
+    "Fall protection certification expired 12 days ago",
+    "Site requires WHMIS 2015 valid certification"
+  ],
+  "rules_applied": [
+    "SiteEligibilityRule:fall_protection_required",
+    "SiteEligibilityRule:whmis_required"
+  ],
+  "policy_version_used": "SitePolicy_v3",
+  "jurisdiction": "BC",
+  "timestamp": "2026-05-19T08:03:12Z"
+}
+```
+
+---
+
+## 4.2 Policy versioning model (nuevo obligatorio)
+
+El MVP debe responder correctamente a la pregunta:
+
+**“What was the rule on that day?”**
+
+### Problema que resuelve
+
+En construction SaaS, las políticas cambian por:
+
+- site
+- contractor
+- jurisdiction
+- customer requirement
+- insurer requirement
+- date / project phase
+
+Si el sistema no guarda versiones efectivas, no podrá soportar auditoría, disputas o replay histórico.
+
+### Nuevas entidades mínimas
+
+#### Policy
+
+Representa la política lógica de negocio.
+
+Campos sugeridos:
+
+- id
+- policy_type
+- owner_type (platform / tenant / site / project)
+- owner_id
+- jurisdiction
+- status
+- created_at
+- updated_at
+
+#### PolicyVersion
+
+Representa una versión concreta y evaluable.
+
+Campos sugeridos:
+
+- id
+- policy_id
+- version_number
+- effective_from
+- effective_to
+- published_at
+- published_by
+- change_summary
+- rule_snapshot_json
+- schema_version
+- status (draft / active / retired)
+
+#### DecisionRecord
+
+Debe guardar el snapshot de la regla usada al momento de decidir.
+
+Campos sugeridos:
+
+- id
+- decision_type
+- subject_type
+- subject_id
+- policy_version_id
+- rule_snapshot_json
+- result_json
+- created_at
+
+### Reglas clave
+
+- toda evaluación debe referenciar exactamente una o más `PolicyVersion`
+- las decisiones históricas no deben recalcularse con políticas nuevas
+- debe existir posibilidad de replay histórico con los mismos inputs y versiones
+
+---
+
+## 4.3 AI Safety module (redefinido)
+
+El módulo AI no puede quedarse en “PPE detection + fall risk + manual review”. Para ser diferenciador necesita tres capas explícitas.
+
+### Layer 1 — Detection layer
+
+Detecta objetos o evidencias observables.
+
+Ejemplos:
+
+- helmet
+- vest
+- harness
+- ladder
+- scaffold
+- trench / excavation edge
+- roof edge
+- machinery proximity
+- blocked exit / clutter
+
+Output ejemplo:
+
+```json
+{
+  "detections": [
+    {"type": "worker", "confidence": 0.98},
+    {"type": "roof_edge", "confidence": 0.92},
+    {"type": "harness_missing", "confidence": 0.84}
+  ]
+}
+```
+
+### Layer 2 — Scene understanding layer (crítica)
+
+Convierte detección en contexto operacional.
+
+Ejemplos:
+
+- work at height scenario
+- roofing activity detected
+- excavation context
+- framing activity
+- ladder access scenario
+- material handling near mobile equipment
+
+Output ejemplo:
+
+```json
+{
+  "scene": "roofing work at height",
+  "activity": "worker installing roof framing",
+  "risk_context": "fall exposure near unprotected edge",
+  "confidence": 0.87
+}
+```
+
+### Layer 3 — Regulatory mapping layer
+
+Toma scene + detections + metadata y lo mapea a reglas regulatorias o site policies.
+
+Inputs:
+
+- detection layer output
+- scene understanding output
+- site metadata
+- jurisdiction
+- active policy version
+
+Output ejemplo:
+
+```json
+{
+  "potential_violation": true,
+  "regulatory_basis": ["WorkSafeBC_fall_protection_rule"],
+  "site_policy_basis": ["SitePolicy_v3:working_at_heights"],
+  "severity": "high",
+  "suggested_action": "Stop work and verify fall protection controls"
+}
+```
+
+### Principio clave
+
+Sin scene understanding + regulatory mapping, el sistema se percibe como una app de computer vision genérica. Con estas tres capas, el producto se convierte en una plataforma de regulatory reasoning asistida por AI.
+
+---
+
+## 4.4 Access credential model (fortalecido)
+
+El modelo de acceso actual está subespecificado. El QR persistente no puede ser la credencial operacional completa.
+
+### Separación obligatoria de conceptos
+
+#### WorkerIdentity (long-lived)
+
+Representa la identidad persistente del trabajador.
+
+Campos sugeridos:
+
+- id
+- tenant_id
+- legal_name
+- preferred_name
+- phone
+- language_preference
+- status
+- identity_verification_status
+- qr_identity_reference
+
+#### AccessToken (short-lived)
+
+Token de acceso temporal generado para validación o ingreso.
+
+Campos sugeridos:
+
+- id
+- worker_identity_id
+- token_type (qr_session / sms_magic_link / gate_pass)
+- issued_at
+- expires_at
+- revoked_at
+- device_binding
+- nonce
+- status
+
+#### ScanSession
+
+Registro de cada intento o sesión de escaneo.
+
+Campos sugeridos:
+
+- id
+- worker_identity_id
+- site_id
+- scanned_at
+- scanner_type
+- device_id
+- token_id
+- network_status
+- decision_id
+- result
+- replay_risk_flag
+
+### Riesgos que este modelo debe cubrir
+
+- QR replay attack
+- token expiration
+- offline scan sync
+- device trust model
+- stale cached decisions
+- link forwarding in SMS scenarios
+
+### Reglas mínimas
+
+- QR persistente identifica, pero no autoriza por sí solo
+- toda autorización efectiva usa `AccessToken` de vida corta o decisión backend vigente
+- cada escaneo genera `ScanSession`
+- decisiones de acceso deben ser revocables y reevaluables
+
+---
+
+## 4.5 Event-driven architecture (nuevo obligatorio)
+
+El sistema no debe ser puramente REST-centric.
+
+### Por qué es necesario
+
+El producto necesita procesamiento asíncrono para:
+
+- AI analysis
+- expiración de certificaciones
+- generación de reportes
+- notifications
+- recalculación de elegibilidad
+- audit trails
+
+### Componente
+
+#### Event Bus
+
+Opciones sugeridas:
+
+- AWS EventBridge
+- SNS + SQS
+- Kafka (más adelante si escala lo exige)
+
+### Eventos mínimos del MVP
+
+- WorkerCreated
+- WorkerUpdated
+- CertificationUploaded
+- CertificationValidated
+- CertificationExpired
+- SitePolicyPublished
+- AccessRequested
+- AccessDecisionGenerated
+- InspectionUploaded
+- DetectionCompleted
+- SceneClassified
+- FindingGenerated
+- FindingReviewed
+- DailyComplianceSummaryRequested
+- DailyComplianceSummaryGenerated
+
+### Patrón sugerido
+
+- REST para command initiation y lectura transaccional
+- eventos para procesos largos, derivados y side effects
+
+---
+
+## 4.6 Audit-grade explainability (nuevo obligatorio)
+
+Toda decisión crítica debe ser explicable.
+
+### Casos donde aplica
+
+- denied access
+- conditional access
+- finding severity high
+- policy mismatch
+- expired certification
+- AI-derived recommendation
+
+### Explainability payload estándar
+
+```json
+{
+  "decision": "denied",
+  "decision_type": "site_access",
+  "reasons": [
+    "Fall protection certification expired 12 days ago",
+    "Site requires WHMIS 2015 valid certification"
+  ],
+  "rules_applied": [
+    "WorkSafeBC:fall_protection_training_required",
+    "SitePolicy_v3:whmis_required"
+  ],
+  "evidence": [
+    {"type": "certification", "reference": "cert_123"},
+    {"type": "site_policy", "reference": "policy_v3"}
+  ],
+  "explanation_level": "audit_grade"
+}
+```
+
+### Requisitos
+
+- human-readable reasons
+- machine-readable rule references
+- evidence references
+- policy version references
+- immutable storage after decision finalization
+
+---
+
+## 4.7 Real-time enforcement loop (nuevo obligatorio)
+
+El sistema no debe detenerse en una decisión. Debe cerrar el loop operativo hasta llegar a una acción ejecutable y trazable en sitio.
+
+### Problema que resuelve
+
+Hoy el flujo llega a:
+
+- access decision
+- AI finding
+- reporting
+
+Pero en un entorno real de obra eso no es suficiente. El sistema debe responder qué pasa inmediatamente después de una decisión crítica, especialmente en gate scenarios o hallazgos de alto riesgo.
+
+### Objetivo
+
+Traducir decisiones de compliance en enforcement actions concretas, con escalación, override controlado y posibilidad de re-validación.
+
+### Enforcement states sugeridos
+
+#### Para acceso
+
+- allowed
+- conditional_allow
+- denied_pending_fix
+- denied_escalated
+- manually_overridden
+- revalidation_required
+- revalidated_allowed
+
+#### Para findings
+
+- logged
+- corrective_action_required
+- supervisor_acknowledged
+- stop_work_recommended
+- escalated_to_cso
+- fix_submitted
+- reinspection_required
+- closed
+
+### Enforcement actions mínimas del MVP
+
+- deny entry
+- notify supervisor
+- request updated certification or proof
+- require manual review at gate
+- trigger override workflow
+- create corrective action task
+- require re-scan or re-validation
+- escalate to CSO / site admin
+
+### Componentes mínimos
+
+#### EnforcementAction
+
+Representa la acción operativa resultante de una decisión.
+
+Campos sugeridos:
+
+- id
+- decision_record_id
+- action_type
+- subject_type
+- subject_id
+- site_id
+- status
+- assigned_to
+- due_at
+- executed_at
+- resolution_notes
+- created_at
+
+#### OverrideRequest
+
+Representa una excepción solicitada a una decisión automática.
+
+Campos sugeridos:
+
+- id
+- decision_record_id
+- requested_by
+- reason_code
+- freeform_reason
+- evidence_asset_id
+- status
+- approved_by
+- approved_at
+- expires_at
+
+#### RevalidationAttempt
+
+Representa un nuevo intento de validación después de una corrección o excepción.
+
+Campos sugeridos:
+
+- id
+- original_decision_id
+- triggered_by
+- trigger_type
+- context_json
+- new_decision_id
+- created_at
+
+### Flujo mínimo de enforcement en gate scenario
+
+1. Worker solicita acceso.
+2. Compliance Decision Engine devuelve denied o conditional.
+3. El sistema crea `EnforcementAction`.
+4. Se notifica al supervisor o gate operator.
+5. El trabajador ve razones y acción requerida.
+6. Si se corrige el problema, se dispara `RevalidationAttempt`.
+7. Si se necesita excepción, se crea `OverrideRequest`.
+8. Toda resolución queda auditada.
+
+### Ejemplo de output extendido
+
+```json
+{
+  "decision": "denied",
+  "decision_type": "site_access",
+  "reasons": [
+    "Fall protection certification expired 12 days ago"
+  ],
+  "rules_applied": [
+    "SitePolicy_v3:fall_protection_required"
+  ],
+  "enforcement": {
+    "action": "deny_entry_and_notify_supervisor",
+    "next_step": "worker_must_upload_valid_certification_or_request_override",
+    "revalidation_allowed": true,
+    "override_allowed": true
+  }
+}
+```
+
+### Reglas clave
+
+- una decisión crítica debe poder generar una acción operacional inmediata
+- override nunca reemplaza la decisión original; crea una capa de excepción auditada
+- toda corrección relevante debe permitir re-validación explícita
+- gate decisions deben reflejar el estado más reciente, no una copia cacheada obsoleta
+
+---
+
+## 5. Scope funcional MVP v2
+
+## 5.1 Module A — Worker identity and certifications
+
+### Objetivo
+
+Crear y mantener el perfil operativo del trabajador.
+
+### Features MVP
+
+- worker creation and profile management
+- mobile number registration
+- language preference
+- certification upload
+- certification review / validation status
+- expiration tracking
+- worker status page
+
+### Certificaciones iniciales sugeridas
+
+- WHMIS 2015
+- fall protection
+- SiteReadyBC (si aplica al tipo de customer / workflow)
+- first aid opcional como metadata, no necesariamente gate blocker al inicio
+
+---
+
+## 5.2 Module B — Site eligibility and access
+
+### Objetivo
+
+Resolver si un worker puede entrar a un site dado un conjunto de reglas activas.
+
+### Features MVP
+
+- site creation
+- site-specific eligibility requirements
+- policy assignment by site
+- access request via QR/SMS
+- allow / conditional / deny decision
+- decision explanation
+- gate scan history
+
+### Estados de acceso
+
+- allowed
+- conditional
+- denied
+- manual_review_required
+
+---
+
+## 5.3 Module C — Worker UX
+
+### Objetivo
+
+Reducir fricción de adopción para workers.
+
+### Requisitos MVP obligatorios
+
+- multilingual support desde el inicio
+- minimum languages: English + Spanish; Punjabi debe quedar preparado como siguiente prioridad para BC
+- ultra simple worker status page
+- current eligibility status
+- certifications expiring soon
+- access denied reasons if applicable
+- mobile-first design
+- fallback identity handling for low-connectivity scenarios
+
+### Worker status page debe mostrar
+
+- identity summary
+- current site eligibility (si aplica)
+- expiring certifications
+- access history reciente
+- action needed
+
+---
+
+## 5.4 Module D — Safety AI observation
+
+### Objetivo
+
+Permitir a supervisor/CSO subir evidencia visual y obtener hallazgos explicables.
+
+### Features MVP
+
+- image upload
+- metadata capture (site, trade, phase, timestamp)
+- detection layer output
+- scene understanding layer output
+- regulatory mapping layer output
+- manual review workflow
+- finding status lifecycle
+
+### Hallazgos iniciales sugeridos
+
+- missing PPE
+- work at height scenario without visible protection
+- blocked access / housekeeping issue
+- ladder misuse (solo si data/model quality lo soporta)
+
+### Estados de finding
+
+- generated
+- pending_review
+- confirmed
+- dismissed
+- corrected
+
+---
+
+## 5.5 Module E — Reporting and compliance summaries
+
+### Objetivo
+
+Generar evidencia entendible y auditable.
+
+### Outputs MVP
+
+- access decision log
+- certification compliance summary
+- daily site compliance summary
+- inspection/finding summary
+- export básico PDF/CSV
+
+---
+
+## 6. Non-functional architecture
+
+## 6.1 Arquitectura técnica sugerida para MVP
+
+### Frontend
+
+- web admin portal
+- mobile-responsive worker portal
+- optional supervisor capture web app
+
+### Backend
+
+- API layer
+- Compliance Decision Engine service
+- Policy service
+- Identity and certification service
+- AI orchestration service
+- Reporting service
+- Notification service
+
+### Data layer
+
+- PostgreSQL para datos transaccionales
+- object storage para media y documentos
+- Redis opcional para short-lived session caching
+
+### Async layer
+
+- EventBridge o SNS/SQS
+- queue workers para AI, expirations, summaries y notifications
+
+### Audit layer
+
+- append-only decision log
+- immutable event records where needed
+
+---
+
+## 6.2 Security baseline
+
+### Requisitos mínimos
+
+- tenant isolation
+- RBAC
+- encrypted storage for PII and documents
+- signed upload URLs
+- short-lived tokens for access sessions
+- audit trails for administrative actions
+- explicit revocation flows
+
+### Roles MVP
+
+- platform_admin
+- tenant_admin
+- site_admin
+- supervisor
+- CSO
+- gate_operator
+- worker
+
+---
+
+## 7. Domain model
+
+## 7.1 Entidades principales
+
+### WorkerIdentity
+- id
+- tenant_id
+- legal_name
+- preferred_name
+- phone
+- language_preference
+- status
+- qr_identity_reference
+- created_at
+
+### Certification
+- id
+- worker_identity_id
+- certification_type
+- issuer
+- issue_date
+- expiry_date
+- validation_status
+- document_asset_id
+- extracted_metadata_json
+
+### Site
+- id
+- tenant_id
+- name
+- location
+- jurisdiction
+- project_phase
+- status
+
+### Policy
+- id
+- owner_type
+- owner_id
+- policy_type
+- jurisdiction
+- status
+
+### PolicyVersion
+- id
+- policy_id
+- version_number
+- effective_from
+- effective_to
+- published_by
+- rule_snapshot_json
+- status
+
+### AccessToken
+- id
+- worker_identity_id
+- token_type
+- issued_at
+- expires_at
+- status
+- device_binding
+
+### AccessRequest
+- id
+- worker_identity_id
+- site_id
+- requested_at
+- channel
+- token_id
+- request_context_json
+
+### DecisionRecord
+- id
+- decision_type
+- subject_type
+- subject_id
+- policy_version_id
+- result_json
+- rule_snapshot_json
+- created_at
+
+### ScanSession
+- id
+- worker_identity_id
+- site_id
+- token_id
+- decision_id
+- scanned_at
+- result
+- replay_risk_flag
+
+### Inspection
+- id
+- site_id
+- uploaded_by
+- captured_at
+- metadata_json
+
+### MediaAsset
+- id
+- inspection_id
+- media_type
+- storage_url
+- metadata_json
+
+### DetectionResult
+- id
+- media_asset_id
+- model_version
+- output_json
+
+### SceneInterpretation
+- id
+- media_asset_id
+- model_version
+- output_json
+
+### Finding
+- id
+- inspection_id
+- media_asset_id
+- finding_type
+- severity
+- status
+- decision_record_id
+- suggested_action
+
+---
+
+## 8. API surface sugerida
+
+## 8.1 Identity and certification
+
+- `POST /workers`
+- `GET /workers/{id}`
+- `POST /workers/{id}/certifications`
+- `GET /workers/{id}/status`
+
+## 8.2 Policies and sites
+
+- `POST /sites`
+- `GET /sites/{id}`
+- `POST /sites/{id}/policies`
+- `POST /policies/{id}/versions`
+- `GET /sites/{id}/effective-policies`
+
+## 8.3 Access and eligibility
+
+- `POST /access/request`
+- `POST /access/scan`
+- `GET /access/decisions/{id}`
+- `POST /access/tokens`
+
+## 8.4 AI and findings
+
+- `POST /inspections`
+- `POST /inspections/{id}/media`
+- `POST /inspections/{id}/analyze`
+- `GET /findings/{id}`
+- `POST /findings/{id}/review`
+
+## 8.5 Reporting
+
+- `GET /sites/{id}/daily-summary`
+- `GET /workers/{id}/compliance-summary`
+- `GET /reports/{id}`
+
+---
+
+## 9. Business rules esenciales
+
+## 9.1 Access rules
+
+- una identidad válida no implica acceso válido
+- acceso depende de evaluación actual del Compliance Decision Engine
+- toda decisión de acceso debe poder justificarse con reglas y evidencia
+- access tokens de corta vida deben ser revocables
+- offline scans deben reconciliarse con backend cuando vuelva conectividad
+
+## 9.2 Policy rules
+
+- una policy no puede mutarse retroactivamente; solo versionarse
+- solo una versión activa por combinación de policy + owner + rango temporal aplicable
+- decisiones históricas deben conservar snapshot de reglas
+
+## 9.3 AI rules
+
+- AI findings nunca son automáticamente “final truth”
+- hallazgos críticos deben permitir manual review
+- regulatory mapping debe depender de jurisdicción + policy version
+- confidence score no reemplaza reasoned explanation
+
+## 9.4 Reporting rules
+
+- daily summaries deben consolidar access decisions + findings + unresolved risks
+- export debe incluir timestamps y referencias de políticas/versiones
+
+---
+
+## 10. MVP sequencing recomendado
+
+## Phase 1 — Identity + certifications + site access core
+
+Entregables:
+
+- WorkerIdentity
+- Certification
+- Site
+- Policy / PolicyVersion
+- Compliance Decision Engine para access eligibility
+- QR/SMS workflows básicos
+- worker status page
+
+## Phase 2 — Explainability + eventing + reporting
+
+Entregables:
+
+- DecisionRecord explainable
+- Event Bus
+- expiration workflows
+- daily compliance summaries
+- audit-grade logs
+
+## Phase 3 — Safety AI MVP
+
+Entregables:
+
+- image upload
+- detection layer
+- scene understanding layer
+- regulatory mapping layer
+- finding review workflow
+
+---
+
+## 11. Pricing anchor inicial
+
+Aunque el pricing final no debe bloquear la construcción, el MVP necesita un anchor de producto.
+
+### Opciones evaluadas
+
+#### A. Per worker / month
+Pros:
+- fácil de entender
+- alinea con identidad/certificación
+
+Contras:
+- puede penalizar workforce variable
+
+#### B. Per site / month
+Pros:
+- encaja con gate flow y site compliance
+- fácil para contractor budgeting
+
+Contras:
+- puede subcapturar valor en sitios muy grandes
+
+#### C. Per active project
+Pros:
+- muy natural para construction
+
+Contras:
+- menos directo si la operación rota workers entre sites
+
+### Recomendación inicial
+
+Usar pricing híbrido de referencia para discovery comercial:
+
+- base fee por site activo
+- banda de workers incluida
+- add-on por AI safety observations / high-volume usage
+
+---
+
+## 12. Acceptance criteria de producto
+
+## 12.1 Access decision
+
+- dado un worker con certificaciones vencidas y una site policy activa
+- cuando solicita acceso
+- entonces el sistema responde denied o conditional
+- y devuelve reasons legibles por humano
+- y guarda policy_version_used y rule_snapshot
+
+## 12.2 Policy replay
+
+- dada una decisión histórica
+- cuando un admin la revisa
+- entonces el sistema puede mostrar la política efectiva usada en esa fecha
+
+## 12.3 Worker UX
+
+- dado un worker en móvil
+- cuando abre su status page
+- entonces puede entender en menos de 10 segundos si está apto para entrar o qué debe corregir
+
+## 12.4 AI finding
+
+- dada una foto con escenario de trabajo en altura
+- cuando se procesa
+- entonces el sistema produce detection output, scene output y regulatory mapping output
+- y permite revisión manual antes de cierre
+
+## 12.5 Eventing
+
+- dado que una certificación expira
+- cuando llega la fecha de expiración
+- entonces se emite `CertificationExpired`
+- y se recalcula elegibilidad donde aplique
+
+---
+
+## 13. Open questions for Kiro refinement
+
+1. ¿Se implementará el Compliance Decision Engine como librería interna o servicio dedicado?
+2. ¿Qué formato de rule representation usará `rule_snapshot_json`?
+3. ¿Cuál será la estrategia de offline scan para gate scenarios?
+4. ¿Cuál es el primer subconjunto exacto de reglas BC para policy modeling?
+5. ¿Qué certificaciones bloquean acceso por defecto y cuáles solo generan warning?
+6. ¿Qué nivel de confianza mínimo requiere AI antes de generar finding automático?
+7. ¿La primera release soportará solo BC o ya dejará preparada abstracción multi-provincia?
+8. ¿Qué data labeling strategy se usará para scene understanding?
+9. ¿Qué partes del explainability payload se mostrarán al worker vs supervisor vs admin?
+10. ¿Qué métricas de éxito del MVP se usarán en piloto?
+
+---
+
+## 14. Success metrics del MVP piloto
+
+### Operativas
+
+- tiempo promedio de decisión de acceso
+- porcentaje de workers resueltos sin intervención manual
+- tiempo de resolución de certificaciones faltantes
+- número de scans por site por día
+
+### Compliance
+
+- número de accesos denegados por incumplimiento válido
+- número de findings confirmados vs dismissals
+- tiempo desde upload hasta finding reviewed
+
+### Producto
+
+- adopción semanal por site
+- worker completion rate en status/credential flow
+- supervisor repeat usage del módulo AI
+- daily summary open rate
+

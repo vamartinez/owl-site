@@ -1,0 +1,80 @@
+name: Landing Page CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/landing-page/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/landing-page/**'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter landing-page lint
+
+      # Resolve the real API Gateway invoke URL from the CDK API stack's own
+      # CloudFormation output (exportName `${prefix}compliance-api-url`) instead
+      # of hand-typing it, so it can't drift. Falls back to the relative `/api`
+      # path (served by the CloudFront `/api/*` behavior in HostingStack) when
+      # AWS credentials or the stack aren't available (e.g. PR builds).
+      - name: Resolve VITE_API_URL from CDK stack output
+        id: api_url
+        shell: bash
+        env:
+          DEPLOY_ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || 'dev' }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+        run: |
+          PREFIX=""
+          if [ "$DEPLOY_ENVIRONMENT" != "prod" ]; then PREFIX="${DEPLOY_ENVIRONMENT}-"; fi
+          EXPORT_NAME="${PREFIX}compliance-api-url"
+          API_URL=""
+          if command -v aws >/dev/null 2>&1 && aws sts get-caller-identity >/dev/null 2>&1; then
+            API_URL="$(aws cloudformation list-exports --region "$AWS_REGION" \
+              --query "Exports[?Name=='${EXPORT_NAME}'].Value | [0]" --output text 2>/dev/null || true)"
+            if [ "$API_URL" = "None" ]; then API_URL=""; fi
+          fi
+          if [ -z "$API_URL" ]; then
+            echo "No stack output resolved; falling back to relative /api (CloudFront /api/* behavior)."
+            API_URL="/api"
+          fi
+          API_URL="${API_URL%/}"
+          echo "Resolved VITE_API_URL=${API_URL}"
+          echo "vite_api_url=${API_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        env:
+          VITE_API_URL: ${{ steps.api_url.outputs.vite_api_url }}
+        run: pnpm --filter landing-page build
