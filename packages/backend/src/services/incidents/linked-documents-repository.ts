@@ -287,7 +287,7 @@ export async function getLinkableResponses(
   // we query using the tenant_id GSI if available, or scan with filter.
 
   // Build key condition and filter expressions
-  let keyConditionExpression = 'tenant_id = :tenantId';
+  const keyConditionExpression = 'tenant_id = :tenantId';
   const expressionAttributeValues: Record<string, unknown> = {
     ':tenantId': tenantId,
   };

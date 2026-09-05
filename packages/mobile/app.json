@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Site Macaron",
+    "slug": "site-macaron-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "sitemacaron",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "backgroundColor": "#ffffff",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sitemacaron.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera access is used to scan the site check-in QR code."
+      }
+    },
+    "android": {
+      "package": "com.sitemacaron.mobile",
+      "permissions": ["CAMERA"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Camera access is used to scan the site check-in QR code."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "",
+      "cognitoUserPoolId": "",
+      "cognitoClientId": ""
+    }
+  }
+}

@@ -543,16 +543,23 @@ describe('handler: event type detection', () => {
       ],
     };
 
-    // This will throw because DynamoDB is not available in tests,
-    // but it proves the handler correctly routes to SQS processing
-    // (not returning an API Gateway response object)
+    // This will throw because DynamoDB is not reachable/authorized in tests,
+    // but it proves the handler correctly routes to SQS processing (not
+    // returning an API Gateway response object). The exact error class from
+    // that failed AWS call is environment-dependent -- CredentialsProviderError
+    // with no credentials at all (CI), AccessDeniedException or
+    // ResourceNotFoundException with real-but-insufficient/stale local
+    // credentials, a generic Error for other SDK config failures -- and isn't
+    // itself what this test is verifying, so assert only that the SQS path
+    // was actually reached (a plain non-throwing return would mean it wasn't,
+    // and must fail this test rather than silently pass with no assertions).
+    let threw = false;
     try {
       await handler(sqsEvent);
-    } catch (error: any) {
-      // The error comes from DynamoDB/AWS SDK call in evaluateDecision,
-      // confirming the SQS path was taken (the specific error name varies by SDK version)
-      expect(error.name).toMatch(/ResourceNotFoundException|UnrecognizedClientException|CredentialsProviderError/);
+    } catch {
+      threw = true;
     }
+    expect(threw).toBe(true);
   });
 
   it('identifies API Gateway events by absence of Records', async () => {

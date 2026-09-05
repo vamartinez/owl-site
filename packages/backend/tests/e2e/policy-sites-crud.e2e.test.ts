@@ -262,13 +262,16 @@ describe('Sites CRUD - E2E', () => {
 
       expect(response.statusCode).toBe(200);
 
+      // handleGetSite returns the mapped site record flat (no `site` wrapper),
+      // matching handleListSites and what SiteProfile.tsx consumes -- see
+      // mapSiteRecord in policy/handler.ts. The id field is `id`, not the raw
+      // DynamoDB `site_id` attribute name.
       const body = JSON.parse(response.body);
-      expect(body).toHaveProperty('site');
-      expect(body.site).toHaveProperty('site_id', 'site-123');
-      expect(body.site).toHaveProperty('name', 'Main Construction Site');
-      expect(body.site).toHaveProperty('address', '789 Builder Blvd');
-      expect(body.site).toHaveProperty('timezone', 'America/Vancouver');
-      expect(body.site).toHaveProperty('status', 'active');
+      expect(body).toHaveProperty('id', 'site-123');
+      expect(body).toHaveProperty('name', 'Main Construction Site');
+      expect(body).toHaveProperty('address', '789 Builder Blvd');
+      expect(body).toHaveProperty('timezone', 'America/Vancouver');
+      expect(body).toHaveProperty('status', 'active');
     });
 
     it('returns 404 when site does not exist', async () => {

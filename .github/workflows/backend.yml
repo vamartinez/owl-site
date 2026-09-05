@@ -2,13 +2,20 @@ name: Backend CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'packages/backend/**'
+      - '.github/workflows/backend.yml'
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'packages/backend/**'
+      - '.github/workflows/backend.yml'
+
+# OIDC deploy needs id-token write; contents read for checkout.
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build-and-test:
@@ -24,8 +31,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - name: Get pnpm store directory
         shell: bash
@@ -59,4 +64,40 @@ jobs:
         run: pnpm --filter backend build
 
       - name: CDK Synth
-        run: pnpm --filter backend cdk:synth
+        run: pnpm --filter backend synth
+
+  # ─── Deploy to the dev environment ───────────────────────────────────────
+  # Only runs on a push to `develop` (never on PRs or on main), after CI is
+  # green. Deploys ALL CDK stacks via `pnpm deploy:dev`, which includes the
+  # HostingStack that publishes whatever admin-portal / landing-page `dist`
+  # is present. Frontend content is refreshed by the admin-portal / landing-page
+  # workflows, which redeploy the HostingStack with a freshly built `dist`.
+  deploy-dev:
+    name: Deploy (dev)
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy all stacks to dev
+        run: pnpm deploy:dev -- --require-approval never

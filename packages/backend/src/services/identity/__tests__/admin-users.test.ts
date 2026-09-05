@@ -10,7 +10,8 @@ import type { AdminUser } from '../admin-users.js';
 const mockSend = vi.fn();
 vi.mock('@aws-sdk/client-cognito-identity-provider', () => ({
   CognitoIdentityProviderClient: vi.fn(() => ({ send: mockSend })),
-  ListUsersCommand: vi.fn((input) => ({ input })),
+  ListUsersCommand: vi.fn((input) => ({ input, __type: 'ListUsers' })),
+  AdminListGroupsForUserCommand: vi.fn((input) => ({ input, __type: 'AdminListGroupsForUser' })),
 }));
 
 describe('admin-users: listAdminUsers', () => {
@@ -230,15 +231,80 @@ describe('admin-users: listAdminUsers', () => {
     expect(result.users[0]!.name).toBe('Bob Smith');
   });
 
-  it('defaults role to "worker" when custom:role attribute is missing', async () => {
+  it('defaults role to "worker" when custom:role attribute is missing and user has no groups', async () => {
+    mockSend
+      .mockResolvedValueOnce({
+        Users: [
+          {
+            Username: 'norole',
+            Attributes: [
+              { Name: 'sub', Value: 'id-norole' },
+              { Name: 'email', Value: 'norole@example.com' },
+              { Name: 'name', Value: 'No Role User' },
+              { Name: 'custom:tenant_id', Value: 'tenant-001' },
+            ],
+            UserStatus: 'CONFIRMED',
+            Enabled: true,
+            UserCreateDate: new Date(),
+            UserLastModifiedDate: new Date(),
+          },
+        ],
+        PaginationToken: undefined,
+      })
+      .mockResolvedValueOnce({ Groups: [] });
+
+    const listAdminUsers = await getListAdminUsers();
+    const result = await listAdminUsers('tenant-001');
+
+    expect(result.users[0]!.role).toBe('worker');
+  });
+
+  it('falls back to Cognito Group membership when custom:role attribute is missing', async () => {
+    // Reproduces the reported bug: a user assigned a role via a Cognito Group
+    // (not the custom:role attribute) showed as "worker" in this list while
+    // the app header — which reads cognito:groups from the JWT — showed their
+    // real role correctly for the same session.
+    mockSend
+      .mockResolvedValueOnce({
+        Users: [
+          {
+            Username: 'group-assigned',
+            Attributes: [
+              { Name: 'sub', Value: 'id-group-assigned' },
+              { Name: 'email', Value: 'vic@example.com' },
+              { Name: 'name', Value: 'Vic' },
+              { Name: 'custom:tenant_id', Value: 'tenant-001' },
+            ],
+            UserStatus: 'CONFIRMED',
+            Enabled: true,
+            UserCreateDate: new Date(),
+            UserLastModifiedDate: new Date(),
+          },
+        ],
+        PaginationToken: undefined,
+      })
+      .mockResolvedValueOnce({ Groups: [{ GroupName: 'platform_admin' }] });
+
+    const listAdminUsers = await getListAdminUsers();
+    const result = await listAdminUsers('tenant-001');
+
+    expect(result.users[0]!.role).toBe('platform_admin');
+    expect(mockSend).toHaveBeenCalledTimes(2);
+    const groupsCall = mockSend.mock.calls[1]![0] as { input: Record<string, unknown> };
+    expect(groupsCall.input['Username']).toBe('group-assigned');
+    expect(groupsCall.input['UserPoolId']).toBe('us-east-1_TestPool');
+  });
+
+  it('does not call AdminListGroupsForUser when custom:role attribute is present', async () => {
     mockSend.mockResolvedValueOnce({
       Users: [
         {
-          Username: 'norole',
+          Username: 'has-role',
           Attributes: [
-            { Name: 'sub', Value: 'id-norole' },
-            { Name: 'email', Value: 'norole@example.com' },
-            { Name: 'name', Value: 'No Role User' },
+            { Name: 'sub', Value: 'id-has-role' },
+            { Name: 'email', Value: 'has-role@example.com' },
+            { Name: 'name', Value: 'Has Role' },
+            { Name: 'custom:role', Value: 'site_admin' },
             { Name: 'custom:tenant_id', Value: 'tenant-001' },
           ],
           UserStatus: 'CONFIRMED',
@@ -253,7 +319,8 @@ describe('admin-users: listAdminUsers', () => {
     const listAdminUsers = await getListAdminUsers();
     const result = await listAdminUsers('tenant-001');
 
-    expect(result.users[0]!.role).toBe('worker');
+    expect(result.users[0]!.role).toBe('site_admin');
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 
   it('paginates through multiple Cognito responses', async () => {

@@ -224,7 +224,7 @@ describe('Combobox Property Tests — Debounce and Keyboard Navigation', () => {
               // Extract the index from the id pattern: {instanceId}-option-{index}
               const match = activedescendant.match(/-option-(\d+)$/);
               expect(match).not.toBeNull();
-              const index = parseInt(match![1], 10);
+              const index = parseInt(match![1]!, 10);
               expect(index).toBeGreaterThanOrEqual(0);
               expect(index).toBeLessThan(options.length);
             }
@@ -285,7 +285,7 @@ describe('Combobox Property Tests — Debounce and Keyboard Navigation', () => {
       fc.assert(
         fc.property(arbNonEmptyOptions, fc.boolean(), (options, hasSelection) => {
           cleanup();
-          const selectedValue = hasSelection ? options[0].value : undefined;
+          const selectedValue = hasSelection ? options[0]!.value : undefined;
           const onChange = vi.fn();
           const onSearchChange = vi.fn();
 
@@ -316,7 +316,7 @@ describe('Combobox Property Tests — Debounce and Keyboard Navigation', () => {
           // If there was a selection, input should still show that label
           if (hasSelection) {
             const inputEl = input as HTMLInputElement;
-            expect(inputEl.value).toBe(options[0].label);
+            expect(inputEl.value).toBe(options[0]!.label);
           }
         }),
         { numRuns: 50 }
@@ -327,7 +327,7 @@ describe('Combobox Property Tests — Debounce and Keyboard Navigation', () => {
       fc.assert(
         fc.property(arbNonEmptyOptions, fc.boolean(), (options, hasSelection) => {
           cleanup();
-          const selectedValue = hasSelection ? options[0].value : undefined;
+          const selectedValue = hasSelection ? options[0]!.value : undefined;
           const onChange = vi.fn();
           const onSearchChange = vi.fn();
 
@@ -358,7 +358,7 @@ describe('Combobox Property Tests — Debounce and Keyboard Navigation', () => {
           // If there was a selection, input should still show that label
           if (hasSelection) {
             const inputEl = input as HTMLInputElement;
-            expect(inputEl.value).toBe(options[0].label);
+            expect(inputEl.value).toBe(options[0]!.label);
           }
         }),
         { numRuns: 50 }

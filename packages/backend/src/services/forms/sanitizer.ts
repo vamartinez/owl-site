@@ -56,7 +56,14 @@ export function sanitizeInput(value: string): string {
 export function sanitizeFormAnswers(
   answers: Record<string, unknown>
 ): Record<string, unknown> {
-  const sanitized: Record<string, unknown> = {};
+  // Object.create(null) instead of {} -- a field literally named "__proto__"
+  // (a valid form field key, and exactly the kind of value a property-based
+  // test explores) silently vanishes on a plain object: `sanitized[key] = v`
+  // with key === '__proto__' invokes the inherited setter rather than
+  // creating an own property, so a later read returns Object.prototype
+  // instead of the sanitized value. A null-prototype object has no such
+  // special-cased key.
+  const sanitized: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
 
   for (const [key, value] of Object.entries(answers)) {
     if (typeof value === 'string') {

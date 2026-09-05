@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { deflateRawSync } from 'zlib';
 import type { TextExtractionInput } from '../../../src/services/report-validation/text-extractor.js';
 
 // Mock AWS SDK modules
@@ -510,8 +511,6 @@ describe('extractText - document exceeding size limits', () => {
  * A .docx file is a ZIP archive containing word/document.xml.
  */
 function createMinimalDocxBuffer(text: string): Buffer {
-  const { deflateRawSync } = require('zlib');
-
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>

@@ -78,7 +78,7 @@ export function extractUserFromClaims(claims: Record<string, string | string[]>)
     } else if (typeof groups === 'string' && groups.trim()) {
       // API Gateway v1 may serialize arrays as comma-separated strings
       // e.g., "platform_admin,tenant_admin" or "[platform_admin]"
-      const cleaned = groups.replace(/[\[\]]/g, '').trim();
+      const cleaned = groups.replace(/[[\]]/g, '').trim();
       role = cleaned.split(',')[0]?.trim() || '';
       roleSource = 'cognito:groups (string)';
     }

@@ -54,8 +54,8 @@ describe('Property 1: Folder contents are sorted alphabetically', () => {
 
           // Verify folders are sorted alphabetically (case-insensitive)
           for (let i = 0; i < result.folders.length - 1; i++) {
-            const cmp = result.folders[i].name.localeCompare(
-              result.folders[i + 1].name,
+            const cmp = result.folders[i]!.name.localeCompare(
+              result.folders[i + 1]!.name,
               undefined,
               { sensitivity: 'base' },
             );
@@ -64,8 +64,8 @@ describe('Property 1: Folder contents are sorted alphabetically', () => {
 
           // Verify documents are sorted alphabetically (case-insensitive)
           for (let i = 0; i < result.documents.length - 1; i++) {
-            const cmp = result.documents[i].name.localeCompare(
-              result.documents[i + 1].name,
+            const cmp = result.documents[i]!.name.localeCompare(
+              result.documents[i + 1]!.name,
               undefined,
               { sensitivity: 'base' },
             );
@@ -151,8 +151,8 @@ describe('Property 4: Default document sort is descending by creation date', () 
 
           // Verify descending order
           for (let i = 0; i < sorted.length - 1; i++) {
-            const currentDate = new Date(sorted[i].createdAt).getTime();
-            const nextDate = new Date(sorted[i + 1].createdAt).getTime();
+            const currentDate = new Date(sorted[i]!.createdAt).getTime();
+            const nextDate = new Date(sorted[i + 1]!.createdAt).getTime();
             expect(currentDate).toBeGreaterThanOrEqual(nextDate);
           }
         },

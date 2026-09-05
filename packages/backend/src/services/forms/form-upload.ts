@@ -130,6 +130,7 @@ export function generateS3Key(
   // Sanitize filename: remove path separators and control characters
   const sanitizedFilename = filename
     .replace(/[/\\]/g, '_')
+    // eslint-disable-next-line no-control-regex -- intentional: strip control chars from filenames
     .replace(/[\x00-\x1f\x7f]/g, '')
     .trim();
 

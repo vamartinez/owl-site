@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Building2, Users, ShieldCheck, MapPin, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SiteCheckinQR } from '@/features/self-checkin';
 
 interface Activity {
   id: string;
@@ -147,6 +148,10 @@ export default function SiteProfile() {
             </ul>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {id && <SiteCheckinQR siteId={id} siteName={data.name} />}
       </div>
     </div>
   );

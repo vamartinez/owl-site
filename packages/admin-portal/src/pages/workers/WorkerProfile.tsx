@@ -12,6 +12,7 @@ import {
   type ApiGetWorkerResponse,
   normalizeWorkerDetail,
 } from '@/types/api-contracts';
+import { SendCheckinLinkButton } from '@/features/self-checkin';
 
 const statusVariants = {
   active: 'success' as const,
@@ -80,9 +81,12 @@ export default function WorkerProfile() {
             <p className="mt-1 text-sm text-gray-500">"{worker.preferredName}"</p>
           )}
         </div>
-        <Badge variant={statusVariants[worker.status]}>
-          {worker.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <SendCheckinLinkButton workerId={id!} workerName={worker.legalName} />
+          <Badge variant={statusVariants[worker.status]}>
+            {worker.status}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

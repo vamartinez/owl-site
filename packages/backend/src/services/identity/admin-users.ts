@@ -6,6 +6,7 @@
 import {
   CognitoIdentityProviderClient,
   ListUsersCommand,
+  AdminListGroupsForUserCommand,
   type UserType,
   type AttributeType,
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -37,14 +38,48 @@ function getAttribute(attributes: AttributeType[] | undefined, name: string): st
 }
 
 /**
+ * Resolves a user's role exactly like `auth-middleware.ts`'s
+ * `extractUserFromClaims` does for JWT claims: the `custom:role` attribute
+ * first, then Cognito Group membership, then a 'worker' default. Some users
+ * are role-assigned via Groups rather than the custom attribute — without
+ * this fallback they show correctly everywhere the role comes from the JWT
+ * (e.g. the app header) but as "worker" here, where it was read from the
+ * Cognito attribute alone.
+ */
+async function resolveUserRole(
+  userPoolId: string,
+  username: string | undefined,
+  attributes: AttributeType[] | undefined
+): Promise<string> {
+  const customRole = getAttribute(attributes, 'custom:role');
+  if (customRole) return customRole;
+
+  if (!username) return 'worker';
+
+  try {
+    const response = await cognitoClient.send(
+      new AdminListGroupsForUserCommand({ UserPoolId: userPoolId, Username: username })
+    );
+    const firstGroup = response.Groups?.[0]?.GroupName;
+    if (firstGroup) return firstGroup;
+  } catch (err) {
+    console.error('Failed to resolve Cognito groups for user', {
+      username,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  return 'worker';
+}
+
+/**
  * Maps a Cognito UserType to our AdminUser interface.
  */
-function mapCognitoUser(cognitoUser: UserType): AdminUser {
+function mapCognitoUser(cognitoUser: UserType, role: string): AdminUser {
   const attributes = cognitoUser.Attributes;
   const sub = getAttribute(attributes, 'sub') ?? cognitoUser.Username ?? '';
   const email = getAttribute(attributes, 'email') ?? '';
   const name = getAttribute(attributes, 'name') ?? getAttribute(attributes, 'preferred_name') ?? email;
-  const role = getAttribute(attributes, 'custom:role') ?? 'worker';
 
   // Map Cognito UserStatus to our status
   let status: 'active' | 'inactive' | 'invited' = 'active';
@@ -109,8 +144,14 @@ export async function listAdminUsers(
     (u) => getAttribute(u.Attributes, 'custom:tenant_id') === tenantId
   );
 
-  // Map Cognito users to our AdminUser interface
-  let adminUsers = tenantUsers.map(mapCognitoUser);
+  // Map Cognito users to our AdminUser interface, resolving each user's role
+  // (custom:role attribute, falling back to Cognito Group membership).
+  let adminUsers = await Promise.all(
+    tenantUsers.map(async (u) => {
+      const role = await resolveUserRole(userPoolId, u.Username, u.Attributes);
+      return mapCognitoUser(u, role);
+    })
+  );
 
   // Apply optional search filter (case-insensitive on name or email)
   if (search) {

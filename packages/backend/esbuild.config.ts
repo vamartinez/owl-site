@@ -5,7 +5,7 @@ import { join } from 'path';
 /**
  * esbuild configuration for Lambda handler bundling.
  *
- * Bundles each service handler independently from src/services/*/handler.ts to dist/.
+ * Bundles each service handler independently from src/services/{service}/handler.ts to dist/.
  * Configured for AWS Lambda Node.js 20 runtime with tree-shaking and minification.
  */
 

@@ -284,7 +284,7 @@ describe('applyFilters', () => {
     };
     const result = applyFilters(documents, filters);
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('1');
+    expect(result[0]!.id).toBe('1');
   });
 });
 
