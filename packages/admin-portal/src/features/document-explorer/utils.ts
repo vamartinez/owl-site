@@ -170,12 +170,9 @@ export interface BreadcrumbSegment {
 export function formatBreadcrumbSegments(path: string[]): BreadcrumbSegment[] {
   const segments: BreadcrumbSegment[] = [{ label: 'Documents', path: [] }];
 
-  for (let i = 0; i < path.length; i++) {
-    segments.push({
-      label: path[i],
-      path: path.slice(0, i + 1),
-    });
-  }
+  path.forEach((label, i) => {
+    segments.push({ label, path: path.slice(0, i + 1) });
+  });
 
   return segments;
 }

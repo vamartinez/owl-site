@@ -536,10 +536,12 @@ export class ApiStack extends cdk.Stack {
 
     // ─── IAM Permissions — Cognito ────────────────────────────────────────────
 
-    // Identity service needs ListUsers permission for GET /admin/users endpoint
+    // Identity service needs ListUsers for GET /admin/users, and
+    // AdminListGroupsForUser to resolve the role of users assigned via a
+    // Cognito Group rather than the custom:role attribute (see admin-users.ts).
     this.identityServiceFn.addToRolePolicy(
       new cdk.aws_iam.PolicyStatement({
-        actions: ['cognito-idp:ListUsers'],
+        actions: ['cognito-idp:ListUsers', 'cognito-idp:AdminListGroupsForUser'],
         resources: [props.userPool.userPoolArn],
       })
     );

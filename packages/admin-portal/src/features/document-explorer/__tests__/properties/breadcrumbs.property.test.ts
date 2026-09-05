@@ -30,8 +30,8 @@ describe('Property 2: Breadcrumb path completeness', () => {
         (path) => {
           const segments = formatBreadcrumbSegments(path);
 
-          expect(segments[0].label).toBe('Documents');
-          expect(segments[0].path).toEqual([]);
+          expect(segments[0]!.label).toBe('Documents');
+          expect(segments[0]!.path).toEqual([]);
         },
       ),
       { numRuns: 100 },
@@ -48,8 +48,8 @@ describe('Property 2: Breadcrumb path completeness', () => {
           // Each non-root segment should have label equal to path[i-1]
           // and path equal to path.slice(0, i)
           for (let i = 1; i < segments.length; i++) {
-            expect(segments[i].label).toBe(path[i - 1]);
-            expect(segments[i].path).toEqual(path.slice(0, i));
+            expect(segments[i]!.label).toBe(path[i - 1]);
+            expect(segments[i]!.path).toEqual(path.slice(0, i));
           }
         },
       ),
