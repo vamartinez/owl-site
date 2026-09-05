@@ -2,9 +2,7 @@ node_modules/
 dist/
 cdk.out/
 *.js.map
-*.d.ts
-!jest.config.js
-!.eslintrc.js
+*.tsbuildinfo
 .env
 .env.local
 .env.*.local
