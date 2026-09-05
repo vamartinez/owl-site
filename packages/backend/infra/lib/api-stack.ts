@@ -613,15 +613,19 @@ export class ApiStack extends cdk.Stack {
     };
 
     // ─── Lambda Integrations ──────────────────────────────────────────────────
-    // Using allowTestInvoke: false to prevent per-route Lambda::Permission resources.
-    // A single wildcard permission per Lambda is granted below instead.
+    // scopePermissionToMethod: false is what actually prevents per-route
+    // Lambda::Permission resources (allowTestInvoke: false alone only drops the
+    // second "test invoke" permission — the primary per-method one still gets
+    // created unless scoping is disabled). A single wildcard permission per
+    // Lambda is granted below instead, covering every route on that function.
 
-    const policyIntegration = new apigateway.LambdaIntegration(this.policyServiceFn, { allowTestInvoke: false });
-    const identityIntegration = new apigateway.LambdaIntegration(this.identityServiceFn, { allowTestInvoke: false });
-    const accessIntegration = new apigateway.LambdaIntegration(this.accessServiceFn, { allowTestInvoke: false });
-    const aiOrchestrationIntegration = new apigateway.LambdaIntegration(this.aiOrchestrationFn, { allowTestInvoke: false });
-    const reportingIntegration = new apigateway.LambdaIntegration(this.reportingServiceFn, { allowTestInvoke: false });
-    const syncIntegration = new apigateway.LambdaIntegration(this.syncServiceFn, { allowTestInvoke: false });
+    const lambdaIntegrationOpts = { scopePermissionToMethod: false };
+    const policyIntegration = new apigateway.LambdaIntegration(this.policyServiceFn, lambdaIntegrationOpts);
+    const identityIntegration = new apigateway.LambdaIntegration(this.identityServiceFn, lambdaIntegrationOpts);
+    const accessIntegration = new apigateway.LambdaIntegration(this.accessServiceFn, lambdaIntegrationOpts);
+    const aiOrchestrationIntegration = new apigateway.LambdaIntegration(this.aiOrchestrationFn, lambdaIntegrationOpts);
+    const reportingIntegration = new apigateway.LambdaIntegration(this.reportingServiceFn, lambdaIntegrationOpts);
+    const syncIntegration = new apigateway.LambdaIntegration(this.syncServiceFn, lambdaIntegrationOpts);
 
     // Contractors reuse identity service (or a dedicated handler — using identity for now)
 
@@ -867,7 +871,7 @@ export class ApiStack extends cdk.Stack {
 
     // ─── API Routes: Forms (Forms Service) ────────────────────────────────────
 
-    const formsIntegration = new apigateway.LambdaIntegration(this.formsServiceFn, { allowTestInvoke: false });
+    const formsIntegration = new apigateway.LambdaIntegration(this.formsServiceFn, lambdaIntegrationOpts);
 
     const forms = this.api.root.addResource('forms');
     forms.addMethod('POST', formsIntegration, authorizedMethodOptions);
@@ -914,9 +918,7 @@ export class ApiStack extends cdk.Stack {
 
     // ─── API Routes: Safety AI (AI Orchestration Service) ────────────────────
 
-    const safetyAiIntegration = new apigateway.LambdaIntegration(this.aiOrchestrationFn, {
-      allowTestInvoke: false,
-    });
+    const safetyAiIntegration = new apigateway.LambdaIntegration(this.aiOrchestrationFn, lambdaIntegrationOpts);
 
     const safetyAi = this.api.root.addResource('safety-ai');
 
@@ -955,7 +957,7 @@ export class ApiStack extends cdk.Stack {
     // while remaining compatible with the already-deployed /incidents/{id} resource.
     // The Lambda handler routes internally based on httpMethod + resolved path.
 
-    const incidentIntegration = new apigateway.LambdaIntegration(this.incidentServiceFn, { allowTestInvoke: false });
+    const incidentIntegration = new apigateway.LambdaIntegration(this.incidentServiceFn, lambdaIntegrationOpts);
 
     const incidents = this.api.root.addResource('incidents');
     incidents.addMethod('POST', incidentIntegration, authorizedMethodOptions);
@@ -1040,10 +1042,17 @@ export class ApiStack extends cdk.Stack {
     // Grants are additive; the misplaced `bedrock:InvokeModel` grant that used
     // to sit on reportValidationFn has been removed — no migrated path calls
     // Bedrock inference anymore (BDA OCR in text-extractor.ts is out of scope).
-    const ollamaApiKey = new secretsmanager.Secret(this, 'OllamaApiKey', {
-      secretName: `${prefix}ollama-api-key`,
-      description: 'Ollama Cloud API key for direct Messages API access',
-    });
+    //
+    // IMPORT (not create): the secret is provisioned out-of-band (the operator
+    // runs `create-secret` + `put-secret-value` once per environment). CDK
+    // creating it would fail with AlreadyExists on any environment where the
+    // key was already placed. Importing by name references the existing secret;
+    // grantRead + .secretArn work identically on an imported ISecret.
+    const ollamaApiKey = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'OllamaApiKey',
+      `${prefix}ollama-api-key`
+    );
 
     for (const fn of [
       this.detectionLayerFn, // detection/detector.ts (vision, qwen3.5:cloud)
@@ -1143,9 +1152,10 @@ class DocumentServiceNestedStack extends cdk.NestedStack {
       sourceArn: apiArn,
     });
 
-    // Lambda integration
+    // Lambda integration. scopePermissionToMethod: false relies on the wildcard
+    // ApiGatewayInvoke permission granted above instead of one per method.
     const documentIntegration = new apigateway.LambdaIntegration(this.documentServiceFn, {
-      allowTestInvoke: false,
+      scopePermissionToMethod: false,
     });
 
     // API Gateway: single proxy route to handle all /documents/* paths
@@ -1237,9 +1247,10 @@ class ReportValidationNestedStack extends cdk.NestedStack {
       sourceArn: apiArn,
     });
 
-    // Lambda integration
+    // Lambda integration. scopePermissionToMethod: false relies on the wildcard
+    // ApiGatewayInvoke permission granted above instead of one per method.
     const reportValidationIntegration = new apigateway.LambdaIntegration(this.reportValidationFn, {
-      allowTestInvoke: false,
+      scopePermissionToMethod: false,
     });
 
     // API Gateway resources
@@ -1358,8 +1369,10 @@ class SelfCheckinNestedStack extends cdk.NestedStack {
       sourceArn: apiArn,
     });
 
+    // scopePermissionToMethod: false relies on the wildcard ApiGatewayInvoke
+    // permission granted above instead of one per method.
     const checkinIntegration = new apigateway.LambdaIntegration(this.selfCheckinServiceFn, {
-      allowTestInvoke: false,
+      scopePermissionToMethod: false,
     });
 
     // Route-count minimization (mirrors document-service's {proxy+} approach) to

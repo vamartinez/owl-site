@@ -2,13 +2,19 @@ name: Landing Page CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'packages/landing-page/**'
+      - '.github/workflows/landing-page.yml'
   pull_request:
-    branches: [main]
+    branches: [main, develop]
     paths:
       - 'packages/landing-page/**'
+      - '.github/workflows/landing-page.yml'
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   build-and-test:
@@ -78,3 +84,62 @@ jobs:
         env:
           VITE_API_URL: ${{ steps.api_url.outputs.vite_api_url }}
         run: pnpm --filter landing-page build
+
+  # ─── Deploy to the dev environment ───────────────────────────────────────
+  # Only on push to `develop`, after CI. Rebuilds the landing page against the
+  # live API URL, then redeploys the HostingStack — the CDK BucketDeployment
+  # picks up the fresh `packages/landing-page/dist` and invalidates CloudFront.
+  deploy-dev:
+    name: Deploy (dev)
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Resolve VITE_API_URL from CDK stack output
+        id: api_url
+        shell: bash
+        env:
+          AWS_REGION: us-east-1
+        run: |
+          EXPORT_NAME="dev-compliance-api-url"
+          API_URL="$(aws cloudformation list-exports --region "$AWS_REGION" \
+            --query "Exports[?Name=='${EXPORT_NAME}'].Value | [0]" --output text 2>/dev/null || true)"
+          if [ "$API_URL" = "None" ] || [ -z "$API_URL" ]; then
+            echo "No stack output resolved; falling back to relative /api."
+            API_URL="/api"
+          fi
+          API_URL="${API_URL%/}"
+          echo "Resolved VITE_API_URL=${API_URL}"
+          echo "vite_api_url=${API_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Build landing page
+        env:
+          VITE_API_URL: ${{ steps.api_url.outputs.vite_api_url }}
+        run: pnpm --filter landing-page build
+
+      - name: Deploy HostingStack to dev
+        working-directory: packages/backend
+        run: pnpm exec cdk deploy dev-ComplianceHostingStack --context environment=dev --require-approval never --exclusively

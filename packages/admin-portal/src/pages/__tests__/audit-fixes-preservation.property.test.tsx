@@ -17,6 +17,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { createElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import fc from 'fast-check';
 
 // ─── Mock Setup ──────────────────────────────────────────────────────────────
@@ -27,6 +28,20 @@ vi.mock('react-router-dom', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) =>
     createElement('a', { href: to }, children),
 }));
+
+// SiteProfile renders SiteCheckinQR, which calls the shared apiClient via
+// react-query — mock it so the mutation never hits the network in these tests.
+vi.mock('@/services/api-client', () => ({
+  apiClient: { post: vi.fn(() => new Promise(() => {})), get: vi.fn() },
+}));
+
+/** SiteProfile now mounts SiteCheckinQR, which needs a QueryClientProvider. */
+function renderSiteProfile(SiteProfile: React.ComponentType) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    createElement(QueryClientProvider, { client }, createElement(SiteProfile))
+  );
+}
 
 // Mock useApi hooks
 const mockUseApiQuery = vi.fn();
@@ -176,7 +191,7 @@ describe('Preservation Property Tests — Admin Portal Audit Fixes', () => {
           cleanup();
           mockUseApiQuery.mockReturnValue({ data: siteData, isLoading: false });
 
-          render(createElement(SiteProfile));
+          renderSiteProfile(SiteProfile);
 
           // Should render all cert badges
           for (const cert of siteData.requiredCerts) {
@@ -196,7 +211,7 @@ describe('Preservation Property Tests — Admin Portal Audit Fixes', () => {
           cleanup();
           mockUseApiQuery.mockReturnValue({ data: siteData, isLoading: false });
 
-          const { container } = render(createElement(SiteProfile));
+          const { container } = renderSiteProfile(SiteProfile);
 
           // Should render activity descriptions (first 5) somewhere in the page
           const displayedActivities = siteData.recentActivity.slice(0, 5);
@@ -217,7 +232,7 @@ describe('Preservation Property Tests — Admin Portal Audit Fixes', () => {
           cleanup();
           mockUseApiQuery.mockReturnValue({ data: siteData, isLoading: false });
 
-          const { container } = render(createElement(SiteProfile));
+          const { container } = renderSiteProfile(SiteProfile);
 
           // Should render site name in the h1
           expect(screen.getByText(siteData.name)).toBeInTheDocument();
@@ -412,7 +427,7 @@ describe('Preservation Property Tests — Admin Portal Audit Fixes', () => {
       const { default: SiteProfile } = await import('../sites/SiteProfile');
 
       mockUseApiQuery.mockReturnValue({ data: undefined, isLoading: true });
-      const { container } = render(createElement(SiteProfile));
+      const { container } = renderSiteProfile(SiteProfile);
       expect(container).toBeTruthy();
       // Loading state shows skeleton animation
     });
@@ -421,7 +436,7 @@ describe('Preservation Property Tests — Admin Portal Audit Fixes', () => {
       const { default: SiteProfile } = await import('../sites/SiteProfile');
 
       mockUseApiQuery.mockReturnValue({ data: null, isLoading: false });
-      const { container } = render(createElement(SiteProfile));
+      const { container } = renderSiteProfile(SiteProfile);
       expect(container).toBeTruthy();
       expect(screen.getByText('Site not found')).toBeInTheDocument();
     });
