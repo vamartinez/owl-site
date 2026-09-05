@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import { AlertTriangle, RefreshCw, XCircle } from 'lucide-react-native';
+import { AlertTriangle, XCircle } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../src/components/Button';

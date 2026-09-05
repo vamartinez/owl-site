@@ -49,7 +49,6 @@ export default function DocumentExplorerPage() {
     if (storePathString !== urlPathString) {
       navigateTo(urlSegments);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Sync store path → URL when navigateTo is called programmatically (e.g., folder click)
@@ -63,7 +62,6 @@ export default function DocumentExplorerPage() {
         { replace: true },
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPath]);
 
   // Build breadcrumb items from current path

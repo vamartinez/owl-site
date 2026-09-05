@@ -35,7 +35,6 @@ export function SiteCheckinQR({ siteId, siteName }: SiteCheckinQRProps) {
     tokenMutation.mutate(siteId, {
       onSuccess: (data) => setPublicUrl(data.public_url),
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siteId]);
 
   // Render the QR whenever the URL changes.

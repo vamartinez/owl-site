@@ -386,7 +386,7 @@ async function handleListReports(
       const queryParams: Record<string, unknown> = {
         ':tid': user.tenant_id,
       };
-      let keyCondition = 'tenant_id = :tid';
+      const keyCondition = 'tenant_id = :tid';
 
       // If filtering by status, use the status GSI
       if (status) {
